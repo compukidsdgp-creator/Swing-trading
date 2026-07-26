@@ -59,6 +59,7 @@ import newsfeed              # noqa: E402
 import notify                # noqa: E402
 import regime as rg          # noqa: E402
 import report as rep         # noqa: E402
+import momentum as momo      # noqa: E402
 import scoring               # noqa: E402
 import sentiment as sent     # noqa: E402
 import universe as uni       # noqa: E402
@@ -147,20 +148,40 @@ def run(args) -> tuple[int, list[str], dict]:
 
     # --- 4. Screener ---
     say("\n[4/10] Screener")
-    rows = []
-    for tkr, df in data.items():
-        try:
-            m = scoring.evaluate(df, bench)
-        except Exception:                                      # noqa: BLE001
-            continue
-        m["Ticker"] = tkr.replace(".NS", "")
-        rows.append(m)
-    if not rows:
-        say("  ABORT: no stocks produced valid scores")
-        return 1, log_lines, ctx
-    ranked = pd.DataFrame(rows).sort_values("Score", ascending=False)
-    ranked = ranked[ranked["Above_50EMA"]]
-    say(f"  scored {len(rows)}, {len(ranked)} above their 50 EMA")
+    if args.model == "momentum":
+        say("  model: 12-1 momentum (residual IC +0.055, Newey-West t = 3.73)")
+        tier_filter = momo.RECOMMENDED_TIERS if args.exclude_small else None
+        ranked = momo.rank_universe(
+            data, bench,
+            min_turnover_cr=0.0,
+            require_above_50ema=True,
+            tier_filter=tier_filter,
+        )
+        if ranked.empty:
+            say("  ABORT: no stocks produced valid momentum values")
+            return 1, log_lines, ctx
+        say(f"  ranked {len(ranked)} stocks by cross-sectional momentum")
+        if args.exclude_small:
+            say("  small caps excluded — ~1.5% round-trip cost exceeds the ~0.5pp edge")
+    else:
+        say("  model: composite v1  ** FAILED VALIDATION "
+            "(residual IC +0.004, t = 0.17) **")
+        rows = []
+        for tkr, df in data.items():
+            try:
+                m = scoring.evaluate(df, bench)
+            except Exception:                                  # noqa: BLE001
+                continue
+            m["Ticker"] = tkr.replace(".NS", "")
+            rows.append(m)
+        if not rows:
+            say("  ABORT: no stocks produced valid scores")
+            return 1, log_lines, ctx
+        ranked = pd.DataFrame(rows).sort_values("Score", ascending=False)
+        ranked = ranked[ranked["Above_50EMA"]]
+        say(f"  scored {len(rows)}, {len(ranked)} above their 50 EMA")
+
+    ctx["model"] = args.model
 
     # --- 5. Bucket ---
     say("\n[5/10] Bucket")
@@ -248,7 +269,7 @@ def run(args) -> tuple[int, list[str], dict]:
         regime_pct=reg.pct_from_200dma, breadth=reg.breadth,
         picks=ctx.get("picks"), forward_summary=ctx.get("forward_summary"),
         bucket_table=ctx.get("bucket_table"), tier_table=ctx.get("tier_table"),
-        notes=news_notes + b.notes,
+        notes=([f"Ranking model: {args.model}"] + news_notes + b.notes),
     )
     written = rep.save(html, REPORT_DIR, stamp, want_pdf=not args.no_pdf)
     for k, v in written.items():
@@ -296,11 +317,23 @@ def main() -> int:
                    help="auto | email,telegram,whatsapp")
     p.add_argument("--daily", action="store_true",
                    help="acknowledge daily cadence (not recommended for 15-20d holds)")
+    p.add_argument("--model", choices=["momentum", "composite_v1"], default="momentum",
+                   help="ranking signal. momentum = 12-1 momentum, validated at "
+                        "residual IC +0.055, t = 3.73. composite_v1 failed validation "
+                        "(residual IC +0.004, t = 0.17) and is kept only for comparison.")
+    p.add_argument("--exclude-small", action="store_true", default=True,
+                   help="exclude small caps, where ~1.5%% round-trip costs exceed the "
+                        "~0.5pp edge. On by default.")
+    p.add_argument("--include-small", dest="exclude_small", action="store_false",
+                   help="override the cost-viability exclusion")
     args = p.parse_args()
 
     if args.daily:
         print("NOTE: daily cadence on a 15-20 day system mostly produces noise "
               "and the temptation to overtrade. Weekly is recommended.\n")
+    if args.model == "composite_v1":
+        print("WARNING: composite_v1 failed factor neutralisation (residual IC +0.004, "
+              "t = 0.17). Its ranking is not supported by evidence.\n")
 
     code, lines, _ = run(args)
 

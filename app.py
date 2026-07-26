@@ -1256,9 +1256,6 @@ def render_validation(cfg: dict) -> None:
     st.download_button("Download windows (CSV)", res.windows.to_csv(index=False).encode(),
                        file_name="ic_windows.csv", mime="text/csv")
 
-    st.divider()
-    render_factor_analysis(cfg)
-
     st.info(
         "**Two biases inflate these numbers.** The universe is today's index members, so "
         "companies that failed and were removed are invisible (survivorship bias). And Indian "
@@ -1299,6 +1296,8 @@ def main() -> None:
         render_backtest(cfg)
     with tabs[3]:
         render_validation(cfg)
+        st.divider()
+        render_factor_analysis(cfg)
     with tabs[4]:
         render_forward_log(cfg, shortlist)
     with tabs[5]:

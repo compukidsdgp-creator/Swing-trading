@@ -1,4 +1,0 @@
-snapshot_date,ticker,tier,score,rank,regime,price_at_pick,horizon_days,target_eval_date,price_at_eval,fwd_return_pct,bench_return_pct,excess_return_pct,status,notes
-2026-07-26,BAJAJ-AUTO,large,81,1,risk_off,11130.0,15,2026-08-16,,,,,open,
-2026-07-26,ANANTRAJ,large,80,2,risk_off,586.55,15,2026-08-16,,,,,open,
-2026-07-26,DATAPATTNS,large,79,3,risk_off,4584.5,15,2026-08-16,,,,,open,

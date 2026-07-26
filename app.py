@@ -27,6 +27,7 @@ import regime as rg
 import tiers as tr
 import backtest as bt
 import validate as val
+import factor_analysis as fana
 import forward_log as flog
 import sentiment as sent
 import report as rep
@@ -876,6 +877,109 @@ def render_backtest(cfg: dict) -> None:
 
 
 # --------------------------------------------------------------------------
+# Factor analysis (inside Validation tab)
+# --------------------------------------------------------------------------
+def render_factor_analysis(cfg: dict) -> None:
+    st.subheader("Factor neutralisation")
+    st.caption(
+        "IC tells you the score predicts returns. It does not tell you whether it predicts "
+        "anything **new**. This runs Fama-MacBeth cross-sectional regressions against six "
+        "well-known factors — 12-1 momentum, short-term reversal, size, volatility, beta and "
+        "liquidity — and reports what survives. If a plain momentum screen gets you the same "
+        "result, the model is an expensive wrapper around a published anomaly."
+    )
+
+    c = st.columns(3)
+    horizon = c[0].slider("Horizon (days)", 5, 30, 15, key="fa_h")
+    years = c[1].select_slider("Period", ["2y", "5y", "10y"], value="5y", key="fa_y")
+    n_stocks = c[2].slider("Stocks", 30, 150, 100, 10, key="fa_n")
+
+    with st.expander("What the numbers mean"):
+        st.markdown(
+            "**IC retention** — share of raw IC surviving after the six factors are "
+            "controlled for. Below 40% means most of your edge is standard factor "
+            "exposure.\n\n"
+            "**Newey-West t** — corrects for autocorrelation across overlapping windows. "
+            "The naive t-statistic is systematically too high; expect this to be lower.\n\n"
+            "**Harvey-Liu-Zhu bar (t > 3.0)** — after accounting for how many strategies "
+            "get tested across the literature, the conventional t > 2 produces too many "
+            "false positives. Serious factor claims now use 3.0.\n\n"
+            "**Factor loadings** — what the score is actually correlated with. A loading "
+            "above 0.7 on any single factor is a warning sign."
+        )
+
+    if not st.button("Run factor analysis", key="fa_run"):
+        st.info("Takes 2–4 minutes for 100 stocks over 5 years.")
+        return
+
+    tickers = tuple(cfg["tickers"][:n_stocks])
+    with st.spinner(f"Fetching {years} history for {len(tickers)} tickers…"):
+        frames = fetch_history(tickers, period=years)
+        bench = fetch_history((config.BENCHMARK,), period=years).get(config.BENCHMARK)
+
+    if not frames:
+        st.error("No data returned — yfinance may be rate-limiting.")
+        return
+
+    with st.spinner("Running cross-sectional regressions…"):
+        res = fana.run(frames, bench, horizon=horizon)
+
+    s = res.summary
+    if "error" in s:
+        st.error(f"Could not run: {s['error']}")
+        return
+
+    m = st.columns(5)
+    m[0].metric("Raw IC", f"{s['raw_ic']:+.4f}")
+    m[1].metric("Residual IC", f"{s['residual_ic']:+.4f}")
+    m[2].metric("Retention", f"{s['ic_retention_pct']}%"
+                if s['ic_retention_pct'] is not None else "—")
+    m[3].metric("Newey-West t", f"{s['fm_score_t_newey_west']}"
+                if s['fm_score_t_newey_west'] is not None else "—")
+    m[4].metric("Windows", s["n_windows"])
+
+    level, message, notes = fana.verdict(s)
+    {"good": st.success, "ok": st.info, "warn": st.warning,
+     "bad": st.error, "error": st.error}[level](message)
+    for n in notes:
+        st.markdown(f"- {n}")
+
+    b1, b2 = st.columns(2)
+    b1.metric("Clears t > 2", "Yes" if s["passes_t2"] else "No")
+    b2.metric("Clears t > 3 (HLZ)", "Yes" if s["passes_hlz_t3"] else "No",
+              help="Harvey, Liu & Zhu (2016) multiple-testing threshold for "
+                   "claiming a genuinely new factor.")
+
+    st.markdown("##### What the score is correlated with")
+    st.caption("A loading above 0.7 means the score is largely that factor in disguise.")
+    st.dataframe(res.loadings, hide_index=True, use_container_width=True)
+    st.bar_chart(res.loadings.set_index("factor")["mean_correlation"])
+
+    st.markdown("##### Fama-MacBeth regression")
+    st.caption(
+        "Forward return regressed on the score plus all six controls, cross-sectionally "
+        "each window, then averaged over time. The `score` row is the question: does it "
+        "add anything once everything else is accounted for?"
+    )
+    st.dataframe(res.fm_coefficients, hide_index=True, use_container_width=True)
+
+    st.markdown("##### Raw vs residual IC over time")
+    st.line_chart(res.per_window.set_index("date")[["raw_ic", "residual_ic"]])
+
+    st.download_button("Download per-window detail (CSV)",
+                       res.per_window.to_csv(index=False).encode(),
+                       file_name="factor_analysis_windows.csv", mime="text/csv")
+
+    st.warning(
+        "**This does not fix survivorship bias.** Factor neutralisation is a statistical "
+        "correction; survivorship is a data problem. Your universe still excludes every "
+        "company that failed and was delisted, which no regression can repair — it needs "
+        "a point-in-time database.",
+        icon="⚠️",
+    )
+
+
+# --------------------------------------------------------------------------
 # Forward log tab — the only evidence that cannot be overfitted
 # --------------------------------------------------------------------------
 def render_forward_log(cfg: dict, shortlist: pd.DataFrame) -> None:
@@ -1151,6 +1255,9 @@ def render_validation(cfg: dict) -> None:
         st.dataframe(res.windows, hide_index=True, use_container_width=True)
     st.download_button("Download windows (CSV)", res.windows.to_csv(index=False).encode(),
                        file_name="ic_windows.csv", mime="text/csv")
+
+    st.divider()
+    render_factor_analysis(cfg)
 
     st.info(
         "**Two biases inflate these numbers.** The universe is today's index members, so "

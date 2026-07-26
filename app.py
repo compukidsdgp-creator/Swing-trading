@@ -28,6 +28,7 @@ import tiers as tr
 import backtest as bt
 import validate as val
 import factor_analysis as fana
+import signals as sig_lab
 import forward_log as flog
 import sentiment as sent
 import report as rep
@@ -980,6 +981,115 @@ def render_factor_analysis(cfg: dict) -> None:
 
 
 # --------------------------------------------------------------------------
+# Signal laboratory (inside Validation tab)
+# --------------------------------------------------------------------------
+def render_signal_lab(cfg: dict) -> None:
+    st.subheader("Signal laboratory")
+    st.caption(
+        "The composite score failed because its five components all measured the same "
+        "thing. Rather than hand-craft another blend, this tests **twelve candidate "
+        "signals individually** and reports which — if any — predict returns *after* the "
+        "standard factor set is controlled for. A signal with high raw IC and zero "
+        "residual IC is a repackaged factor. One with modest raw IC but positive residual "
+        "IC is worth far more."
+    )
+
+    c = st.columns(3)
+    horizon = c[0].slider("Horizon (days)", 5, 30, 15, key="sl_h")
+    years = c[1].select_slider("Period", ["2y", "5y", "10y"], value="5y", key="sl_y")
+    n_stocks = c[2].slider("Stocks", 30, 150, 100, 10, key="sl_n")
+
+    with st.expander("What each signal is, and why it's here"):
+        st.markdown(
+            "| Signal | Rationale |\n|---|---|\n"
+            "| `mom_12_1` | Classic momentum (Jegadeesh & Titman 1993). The benchmark to beat. |\n"
+            "| `mom_6_1` | Shorter formation window. |\n"
+            "| `idiosyncratic_mom` | Momentum of the market-beta residual (Blitz et al. 2011). |\n"
+            "| `mom_consistency` | Share of positive days — path, not just endpoint. |\n"
+            "| `vol_adjusted_mom` | Momentum divided by volatility. |\n"
+            "| `52w_high_proximity` | Anchoring effect (George & Hwang 2004). |\n"
+            "| `acceleration` | Is the trend speeding up or fading? |\n"
+            "| `accumulation` | Up-day volume minus down-day volume. |\n"
+            "| `low_volatility` | The low-volatility anomaly. |\n"
+            "| `reversal_1m` | Short-term reversal. |\n"
+            "| `illiquidity` | Amihud (2002) illiquidity premium. |\n"
+            "| `range_compression` | Volatility squeeze. |\n\n"
+            "**Read the `residual_ic` column, not `raw_ic`.** Raw IC mostly reflects "
+            "factor exposure you can buy cheaply elsewhere."
+        )
+
+    if not st.button("Run signal lab", key="sl_run"):
+        st.info("Takes 3–6 minutes for 100 stocks over 5 years — it computes twelve "
+                "signals plus six controls per stock per window.")
+        return
+
+    tickers = tuple(cfg["tickers"][:n_stocks])
+    with st.spinner(f"Fetching {years} history for {len(tickers)} tickers…"):
+        frames = fetch_history(tickers, period=years)
+        bench = fetch_history((config.BENCHMARK,), period=years).get(config.BENCHMARK)
+
+    if not frames:
+        st.error("No data returned — yfinance may be rate-limiting.")
+        return
+
+    with st.spinner("Testing twelve signals…"):
+        res = sig_lab.run(frames, bench, horizon=horizon)
+
+    if res.table.empty:
+        st.error("No valid windows — try a longer period or more stocks.")
+        return
+
+    st.caption(f"{res.n_windows} non-overlapping windows.")
+
+    winners = res.table[res.table["residual_t_nw"].abs() >= 2.0] \
+        if res.table["residual_t_nw"].notna().any() else res.table.iloc[0:0]
+
+    if winners.empty:
+        st.error(
+            "**No signal shows significant incremental content.** Every candidate is "
+            "either a repackaged factor or noise. This is the normal outcome of signal "
+            "research — and a real finding: at retail data quality, price-based signals "
+            "do not clear the bar once known factors are controlled for."
+        )
+    else:
+        st.success(
+            f"**{len(winners)} signal(s) retain significant content** after factor "
+            "neutralisation. Treat as candidates for further testing, not conclusions."
+        )
+
+    for n in res.notes:
+        st.markdown(f"- {n}")
+
+    st.markdown("##### Results, ranked by residual IC")
+    st.dataframe(
+        res.table, hide_index=True, use_container_width=True,
+        column_config={
+            "raw_ic": st.column_config.NumberColumn("Raw IC", format="%.4f"),
+            "residual_ic": st.column_config.NumberColumn("Residual IC", format="%.4f"),
+            "retention_pct": st.column_config.NumberColumn("Retention %", format="%.1f"),
+            "residual_t_nw": st.column_config.NumberColumn("Residual t (NW)", format="%.2f"),
+            "pct_positive": st.column_config.NumberColumn("% pos windows", format="%.1f"),
+        },
+    )
+
+    plot = res.table.set_index("signal")[["raw_ic", "residual_ic"]]
+    st.markdown("##### Raw vs residual IC")
+    st.caption("The gap between the two bars is the part that is standard factor exposure.")
+    st.bar_chart(plot)
+
+    st.download_button("Download results (CSV)", res.table.to_csv(index=False).encode(),
+                       file_name="signal_lab.csv", mime="text/csv")
+
+    st.info(
+        "**If something looks promising, resist building on it immediately.** Twelve "
+        "signals tested means twelve chances for one to clear t>2 by luck alone — roughly "
+        "even odds. That is exactly the multiple-testing problem the t>3 bar exists for. "
+        "Confirm on a different period or universe before trusting it.",
+        icon="⚠️",
+    )
+
+
+# --------------------------------------------------------------------------
 # Forward log tab — the only evidence that cannot be overfitted
 # --------------------------------------------------------------------------
 def render_forward_log(cfg: dict, shortlist: pd.DataFrame) -> None:
@@ -1298,6 +1408,8 @@ def main() -> None:
         render_validation(cfg)
         st.divider()
         render_factor_analysis(cfg)
+        st.divider()
+        render_signal_lab(cfg)
     with tabs[4]:
         render_forward_log(cfg, shortlist)
     with tabs[5]:

@@ -22,6 +22,7 @@ import config
 import indicators as ind
 import newsfeed
 import scoring
+import momentum as momo
 import universe as uni
 import regime as rg
 import tiers as tr
@@ -197,6 +198,25 @@ def sidebar() -> dict:
         st.sidebar.caption(f"Trimmed to first {max_scan} tickers.")
 
     st.sidebar.divider()
+    st.sidebar.subheader("Scoring model")
+    model = st.sidebar.radio(
+        "Ranking signal",
+        ["Momentum (validated)", "Composite v1 (failed validation)"],
+        index=0,
+        help="v1 blended five components that all measured the same thing — it retained "
+             "only 13.9% of its IC after factor neutralisation. Momentum (12-1) cleared "
+             "t = 3.73. Kept switchable so you can compare.",
+    )
+    if model.startswith("Composite"):
+        st.sidebar.warning(
+            "v1 failed validation: residual IC +0.004, t = 0.17. Shown for comparison only.",
+            icon="⚠️",
+        )
+    else:
+        st.sidebar.caption(
+            "12-1 momentum · residual IC +0.055 · t = 3.73 · 59.7% positive windows"
+        )
+
     st.sidebar.subheader("Filters")
 
     min_turnover = st.sidebar.number_input(
@@ -220,6 +240,7 @@ def sidebar() -> dict:
 
     return dict(
         tickers=tuple(tickers),
+        model="momentum" if model.startswith("Momentum") else "composite_v1",
         min_turnover=min_turnover,
         rsi_band=(rsi_lo, rsi_hi),
         require_uptrend=require_uptrend,
@@ -361,21 +382,36 @@ def render_screener(cfg: dict) -> pd.DataFrame:
         help="Suppresses tiers the current regime doesn't permit. Turning this off is how accounts die in drawdowns.",
     )
 
-    rows = []
-    for tkr, df in data.items():
-        try:
-            metrics = scoring.evaluate(df, bench_df)
-        except Exception:
-            continue
-        metrics["Ticker"] = tkr.replace(".NS", "")
-        metrics["_raw"] = tkr
-        rows.append(metrics)
-
-    if not rows:
-        st.warning("No tickers produced valid metrics.")
-        return pd.DataFrame()
-
-    res = pd.DataFrame(rows)
+    if cfg.get("model") == "momentum":
+        res = momo.rank_universe(
+            data, bench_df,
+            min_turnover_cr=0.0,        # sidebar filter applies below
+            require_above_50ema=False,  # ditto
+        )
+        if res.empty:
+            st.warning("No tickers produced valid momentum values.")
+            return pd.DataFrame()
+        with st.expander("What this signal is, and why"):
+            st.markdown(momo.explain())
+    else:
+        rows = []
+        for tkr, df in data.items():
+            try:
+                metrics = scoring.evaluate(df, bench_df)
+            except Exception:
+                continue
+            metrics["Ticker"] = tkr.replace(".NS", "")
+            metrics["_raw"] = tkr
+            rows.append(metrics)
+        if not rows:
+            st.warning("No tickers produced valid metrics.")
+            return pd.DataFrame()
+        res = pd.DataFrame(rows)
+        st.warning(
+            "**Composite v1 is shown for comparison only.** It failed factor "
+            "neutralisation — residual IC +0.004, t = 0.17. Its ranking is not "
+            "supported by evidence.", icon="⚠️",
+        )
 
     # Apply filters
     lo, hi = cfg["rsi_band"]
@@ -403,10 +439,14 @@ def render_screener(cfg: dict) -> pd.DataFrame:
         st.info("Nothing passed. Loosen the filters in the sidebar.")
         return filtered
 
-    show_cols = [
-        "Ticker", "Tier", "Close", "Score", "Trend", "Momentum", "Volume_S",
-        "RelStrength", "Setup", "RSI", "ATR_pct", "Ret_20d", "Turnover_Cr",
-    ]
+    if cfg.get("model") == "momentum":
+        show_cols = ["Ticker", "Tier", "Close", "Score", "Momentum", "RSI",
+                     "ATR_pct", "Ret_20d", "Turnover_Cr", "Cost_viable"]
+    else:
+        show_cols = ["Ticker", "Tier", "Close", "Score", "Trend", "Momentum",
+                     "Volume_S", "RelStrength", "Setup", "RSI", "ATR_pct",
+                     "Ret_20d", "Turnover_Cr"]
+    show_cols = [c for c in show_cols if c in filtered.columns]
     display = filtered[show_cols].copy()
 
     st.dataframe(
@@ -428,6 +468,15 @@ def render_screener(cfg: dict) -> pd.DataFrame:
             "Turnover_Cr": st.column_config.NumberColumn("₹Cr/day", format="%.0f"),
         },
     )
+
+    if cfg.get("model") == "momentum" and "Cost_viable" in filtered.columns:
+        n_bad = int((~filtered["Cost_viable"]).sum())
+        if n_bad:
+            st.caption(
+                f"⚠️ {n_bad} of {len(filtered)} are small caps. At ~1.5% round-trip cost "
+                "against a ~0.5pp edge, momentum is not economically viable there "
+                "regardless of rank."
+            )
 
     dl, bcol = st.columns([1, 1])
     dl.download_button(

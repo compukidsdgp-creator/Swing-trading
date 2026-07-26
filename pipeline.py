@@ -129,8 +129,12 @@ def run(args) -> tuple[int, list[str], dict]:
 
     # --- 2. Data ---
     say("\n[2/10] Price data")
-    data = _fetch(tickers)
-    bench = _fetch((config.BENCHMARK,)).get(config.BENCHMARK)
+    # 12-1 momentum needs 252 bars plus buffer; a 1y fetch returns only ~250
+    # NSE trading days and would silently reject every ticker.
+    period = "2y" if args.model == "momentum" else "1y"
+    data = _fetch(tickers, period=period)
+    bench = _fetch((config.BENCHMARK,), period=period).get(config.BENCHMARK)
+    say(f"  fetch period: {period}")
     say(f"  {len(data)} of {len(tickers)} tickers returned usable history")
     if not data:
         say("  ABORT: no price data (yfinance rate limit?)")
@@ -158,7 +162,11 @@ def run(args) -> tuple[int, list[str], dict]:
             tier_filter=tier_filter,
         )
         if ranked.empty:
-            say("  ABORT: no stocks produced valid momentum values")
+            lens = [len(d) for d in data.values() if d is not None]
+            say(f"  ABORT: no valid momentum values. Histories ranged "
+                f"{min(lens) if lens else 0}-{max(lens) if lens else 0} bars; "
+                f"need {momo.LOOKBACK + 5}. If history is sufficient, no stock has "
+                "positive 12-month momentum — zero picks is the correct answer.")
             return 1, log_lines, ctx
         say(f"  ranked {len(ranked)} stocks by cross-sectional momentum")
         if args.exclude_small:

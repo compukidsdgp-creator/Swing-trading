@@ -357,9 +357,12 @@ def render_screener(cfg: dict) -> pd.DataFrame:
         "relative strength and setup quality. Expand any row to see the components."
     )
 
-    with st.spinner(f"Fetching {len(cfg['tickers'])} tickers…"):
-        data = fetch_history(cfg["tickers"])
-        bench = fetch_history((config.BENCHMARK,))
+    # Momentum needs 252 bars of formation window plus buffer; a 1y fetch
+    # returns only ~250 NSE trading days, which silently rejects every ticker.
+    period = "2y" if cfg.get("model") == "momentum" else "1y"
+    with st.spinner(f"Fetching {len(cfg['tickers'])} tickers ({period})…"):
+        data = fetch_history(cfg["tickers"], period=period)
+        bench = fetch_history((config.BENCHMARK,), period=period)
 
     if not data:
         st.error(
@@ -404,7 +407,18 @@ def render_screener(cfg: dict) -> pd.DataFrame:
             min_momentum=0.0 if cfg.get("require_positive_mom", True) else None,
         )
         if res.empty:
-            st.warning("No tickers produced valid momentum values.")
+            lens = [len(d) for d in data.values() if d is not None]
+            shortest, longest = (min(lens), max(lens)) if lens else (0, 0)
+            st.error(
+                "**No tickers produced valid momentum values.**\n\n"
+                f"Fetched {len(data)} tickers with {shortest}–{longest} bars of history. "
+                f"12-1 momentum needs at least {momo.LOOKBACK + 5}.\n\n"
+                "If history looks sufficient, the absolute momentum floor is the likely "
+                "cause — in a broadly falling market no stock has positive 12-month "
+                "momentum, and zero picks is the correct answer. Untick "
+                "**Require positive 12-1 momentum** in the sidebar to see the ranking "
+                "anyway, understanding that it will promote the best of a bad set."
+            )
             return pd.DataFrame()
         with st.expander("What this signal is, and why"):
             st.markdown(momo.explain())

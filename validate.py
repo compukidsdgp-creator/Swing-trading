@@ -104,11 +104,27 @@ def run_ic(
     if not enriched:
         return ICResult(pd.DataFrame(), pd.DataFrame(), {"error": "no usable data"})
 
-    # Common trading calendar
-    common = sorted(set.intersection(*(set(e.index) for e in enriched.values())))
-    if len(common) < MIN_HISTORY + horizon + 2:
-        return ICResult(pd.DataFrame(), pd.DataFrame(), {"error": "insufficient overlap"})
-    cal = pd.DatetimeIndex(common)
+    # Trading calendar.
+    #
+    # NOTE: an earlier version used the INTERSECTION of every ticker's dates.
+    # That silently collapsed the calendar whenever the universe contained a
+    # recent listing — one stock that IPO'd last year reduced a 5-year test to
+    # a single window. The per-ticker loop below already skips names missing a
+    # given date, so the intersection was never necessary.
+    #
+    # Prefer the benchmark's calendar (it spans the full period); otherwise
+    # fall back to the ticker with the longest history.
+    if bench_e is not None and len(bench_e) >= MIN_HISTORY + horizon + 2:
+        cal = pd.DatetimeIndex(bench_e.index)
+    else:
+        cal = pd.DatetimeIndex(max((e.index for e in enriched.values()), key=len))
+
+    if len(cal) < MIN_HISTORY + horizon + 2:
+        return ICResult(
+            pd.DataFrame(), pd.DataFrame(),
+            {"error": f"insufficient history: {len(cal)} bars, need "
+                      f"{MIN_HISTORY + horizon + 2}"},
+        )
 
     rows, bucket_rows = [], []
     rng = np.random.default_rng(seed)

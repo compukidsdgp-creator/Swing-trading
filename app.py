@@ -29,6 +29,8 @@ import backtest as bt
 import validate as val
 import factor_analysis as fana
 import signals as sig_lab
+import composite as comp
+import data_quality as dq
 import forward_log as flog
 import sentiment as sent
 import report as rep
@@ -1090,6 +1092,171 @@ def render_signal_lab(cfg: dict) -> None:
 
 
 # --------------------------------------------------------------------------
+# Composite builder (inside Validation tab)
+# --------------------------------------------------------------------------
+def render_composite_builder(cfg: dict) -> None:
+    st.subheader("Orthogonal composite builder")
+    st.caption(
+        "The v1 score failed because its five components all measured the same thing — "
+        "nobody checked whether they were independent. This enforces two gates before a "
+        "signal is admitted: **significant incremental content** (Newey-West t above the "
+        "threshold, after factor neutralisation) and **independence** (correlation with "
+        "every already-selected component below the ceiling). Weights are set by "
+        "residual IC over residual volatility — never fitted to returns."
+    )
+
+    c = st.columns(4)
+    horizon = c[0].slider("Horizon", 5, 30, 15, key="cb_h")
+    years = c[1].select_slider("Period", ["2y", "5y", "10y"], value="5y", key="cb_y")
+    min_t = c[2].select_slider("Min |t|", [1.5, 2.0, 2.5, 3.0], value=2.0, key="cb_t",
+                               help="3.0 is the Harvey-Liu-Zhu bar for a new factor claim.")
+    max_corr = c[3].slider("Max correlation", 0.3, 0.9, 0.6, 0.05, key="cb_c")
+
+    if not st.button("Build composite", key="cb_run"):
+        st.info("Runs the signal lab, computes the pairwise correlation matrix, then "
+                "assembles a composite from whatever survives. 5–8 minutes.")
+        return
+
+    tickers = tuple(cfg["tickers"][:100])
+    with st.spinner("Fetching data…"):
+        frames = fetch_history(tickers, period=years)
+        bench = fetch_history((config.BENCHMARK,), period=years).get(config.BENCHMARK)
+    if not frames:
+        st.error("No data returned.")
+        return
+
+    with st.spinner("Testing signals…"):
+        lab = sig_lab.run(frames, bench, horizon=horizon)
+    if lab.table.empty:
+        st.error("Signal lab produced no results.")
+        return
+
+    with st.spinner("Computing correlation matrix…"):
+        corr = comp.correlation_matrix(frames, bench, step=horizon)
+
+    spec = comp.build(lab.table, corr, min_t=min_t, max_correlation=max_corr)
+
+    if spec.is_empty:
+        st.error(f"**No composite could be built.** {spec.diagnostics.get('error', '')}")
+        if spec.rejected:
+            with st.expander(f"Why each of {len(spec.rejected)} signals was rejected"):
+                for n, r in spec.rejected:
+                    st.markdown(f"- **{n}** — {r}")
+        st.info(
+            "This is a legitimate outcome, not a failure of the tool. A composite built "
+            "from components with no demonstrated incremental content is exactly what v1 "
+            "was.", icon="ℹ️",
+        )
+        return
+
+    st.success(f"**Composite:** {spec.describe()}")
+
+    m = st.columns(4)
+    m[0].metric("Components", len(spec.components))
+    m[1].metric("Qualified", spec.diagnostics.get("n_qualified", 0))
+    m[2].metric("Rejected", spec.diagnostics.get("n_rejected", 0))
+    m[3].metric("Max pairwise corr", f"{spec.diagnostics.get('max_pairwise_corr', 0):.2f}")
+
+    st.markdown("##### Component weights")
+    st.dataframe(pd.DataFrame([{"component": k, "weight": v}
+                               for k, v in spec.weights.items()]),
+                 hide_index=True, use_container_width=True)
+
+    if spec.correlations is not None:
+        st.markdown("##### Correlation between selected components")
+        st.caption("All off-diagonal values should sit below your ceiling. "
+                   "This is the check that v1 never had.")
+        st.dataframe(spec.correlations, use_container_width=True)
+
+    with st.expander(f"Rejected signals ({len(spec.rejected)})"):
+        for n, r in spec.rejected:
+            st.markdown(f"- **{n}** — {r}")
+
+    with st.spinner("Validating the assembled composite…"):
+        v = comp.validate(spec, frames, bench, horizon=horizon)
+
+    st.markdown("##### Composite performance")
+    if "error" in v:
+        st.warning(v["error"])
+    else:
+        k = st.columns(3)
+        k[0].metric("Composite IC", f"{v['composite_ic']:+.4f}")
+        k[1].metric("Newey-West t", f"{v['t_newey_west']}")
+        k[2].metric("Positive windows", f"{v['pct_positive']}%")
+        st.warning(v["caveat"], icon="⚠️")
+
+    st.markdown("##### Full correlation matrix")
+    st.caption("The diagnostic that would have caught the v1 failure before deployment.")
+    if not corr.empty:
+        st.dataframe(corr, use_container_width=True)
+
+
+# --------------------------------------------------------------------------
+# Data quality (inside Validation tab)
+# --------------------------------------------------------------------------
+def render_data_quality(cfg: dict) -> None:
+    st.subheader("Data quality & survivorship")
+    st.caption(
+        "yfinance carries known defects — bad split adjustments, stale prices, "
+        "zero-volume gaps. The scoring code cannot see them and will happily rank a "
+        "stock on a 400% move that was a mis-applied corporate action."
+    )
+
+    years = st.select_slider("Period to audit", ["1y", "2y", "5y"], value="2y", key="dq_y")
+
+    if not st.button("Run audit", key="dq_run"):
+        st.info("Checks every ticker in the current universe for data defects.")
+        return
+
+    tickers = tuple(cfg["tickers"][:150])
+    with st.spinner(f"Auditing {len(tickers)} tickers…"):
+        frames = fetch_history(tickers, period=years)
+    if not frames:
+        st.error("No data returned.")
+        return
+
+    res = dq.audit(frames)
+    m = st.columns(3)
+    m[0].metric("Tickers", res.stats["total"])
+    m[1].metric("Clean", res.stats["clean"])
+    m[2].metric("Flagged", res.stats["flagged"], f"{100 - res.stats['clean_pct']:.0f}%")
+
+    if res.stats["clean_pct"] < 70:
+        st.warning(
+            f"Only {res.stats['clean_pct']}% of the universe is clean. Defects at this "
+            "rate meaningfully distort backtests — a single bad tick can dominate a "
+            "window's cross-section."
+        )
+    else:
+        st.success(f"{res.stats['clean_pct']}% clean.")
+
+    if res.flagged:
+        st.markdown("##### Flagged tickers")
+        st.dataframe(res.summary, hide_index=True, use_container_width=True)
+
+        cleaned, removed = dq.clean(frames)
+        st.caption(
+            f"Repair would keep {len(cleaned)} tickers (extreme moves forward-filled) "
+            f"and drop {len(removed)} as unsalvageable."
+        )
+
+    st.markdown("##### Point-in-time universe coverage")
+    st.caption(
+        "Membership decided by traded value **as of each date**, not by today's index. "
+        "Churn is a good sign — it means the universe is genuinely being reconstructed "
+        "rather than inherited."
+    )
+    with st.spinner("Building coverage report…"):
+        cov = dq.pit_coverage_report(frames, step=63)
+    if not cov.empty:
+        st.dataframe(cov, hide_index=True, use_container_width=True)
+        st.line_chart(cov.set_index("date")["n_eligible"])
+        st.metric("Mean quarterly churn", f"{cov['churn_pct'].mean():.1f}%")
+
+    st.error(dq.bias_note(frames), icon="⚠️")
+
+
+# --------------------------------------------------------------------------
 # Forward log tab — the only evidence that cannot be overfitted
 # --------------------------------------------------------------------------
 def render_forward_log(cfg: dict, shortlist: pd.DataFrame) -> None:
@@ -1410,6 +1577,10 @@ def main() -> None:
         render_factor_analysis(cfg)
         st.divider()
         render_signal_lab(cfg)
+        st.divider()
+        render_composite_builder(cfg)
+        st.divider()
+        render_data_quality(cfg)
     with tabs[4]:
         render_forward_log(cfg, shortlist)
     with tabs[5]:

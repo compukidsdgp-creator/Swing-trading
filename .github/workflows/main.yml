@@ -25,7 +25,7 @@ jobs:
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python pipeline.py --universe "Nifty 500" --size 10 --no-pdf --notify
+        run: python pipeline.py --universe "Nifty 500" --size 10 --no-pdf --notify --backtest-ic 0.0506
 
       - name: Commit results
         run: |

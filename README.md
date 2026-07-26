@@ -2,149 +2,242 @@
 
 An NSE swing-trading research dashboard built for **15–20 trading day holds**.
 
-Screens a configurable universe on a transparent composite score, charts the
-setups, pulls headlines, sizes positions from ATR, and tracks expectancy in a
-trade journal.
+Screens a live universe on a transparent composite score, sizes positions from
+volatility, analyses news sentiment, and — most importantly — includes the tools
+to find out whether any of it actually works.
 
-> **This is a research tool, not a signal service.** Data is end-of-day and
-> delayed. Nothing here predicts prices. Swing trading carries real risk of
-> capital loss — SEBI's own studies find the majority of active retail traders
-> lose money net of costs.
+> **Research tool, not a signal service.** Data is end-of-day and delayed.
+> A high score is not a prediction. Swing trading carries real risk of capital
+> loss, and SEBI's own studies find most active retail traders lose money net of
+> costs. Nothing here is investment advice.
 
 ---
 
-## Quick start
+## What it does
+
+| Tab | Purpose |
+|---|---|
+| 🔍 **Screener** | Ranks a live NSE universe 0–100. Regime banner gates which cap tiers are permitted. |
+| 📊 **Detail** | Candlestick chart with indicators, ATR position sizing, liquidity caps, R-multiple targets. |
+| 🧪 **Backtest** | Walk-forward simulation. No lookahead: entries fill at the next bar's open. |
+| 🔬 **Validation** | Information Coefficient with a permutation test — does the score rank forward returns? |
+| 📋 **Forward log** | Records picks *before* outcomes exist. The one evidence type that can't be overfitted. |
+| 📰 **News** | Finance-tuned sentiment with a summary panel. Handles negation and contrast clauses. |
+| 📓 **Journal** | Trade log with win rate, avg R, and expectancy. |
+| ❓ **Method** | Full documentation of the scoring logic. |
+
+Plus **automated weekly and month-end reports** via GitHub Actions, delivered by
+email as HTML and PDF.
+
+---
+
+## Quick start (local)
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/<you>/swingscope.git
 cd swingscope
 pip install -r requirements.txt
 streamlit run app.py
 ```
 
-Open http://localhost:8501.
+Opens at http://localhost:8501.
 
-## Deploying to Streamlit Community Cloud
-
-1. Push this folder to a **public** GitHub repo.
-2. Go to [share.streamlit.io](https://share.streamlit.io) → **New app**.
-3. Point it at your repo, branch `main`, main file `app.py`.
-4. Deploy. First build takes 2–3 minutes.
-
-No secrets or API keys are required — Google News RSS and yfinance are both
-keyless. If you later add a paid news API, put the key in
-**App settings → Secrets** and read it with `st.secrets["KEY_NAME"]`.
-
-### Deployment notes
-
-- **Free tier resource limits are real.** Scanning "Everything" (~130 tickers)
-  can approach the memory ceiling on a cold start. Start with Nifty 50.
-- **yfinance rate-limits aggressively.** Results are cached 30 minutes
-  (`@st.cache_data(ttl=1800)`). If you see empty results, wait a minute rather
-  than hammering refresh.
-- **Cold starts are slow.** The app sleeps after inactivity on the free tier;
-  first load after sleep takes ~30s.
+**Windows:**
+```cmd
+py -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+streamlit run app.py
+```
 
 ---
 
-## Project layout
+## Deploy to Streamlit Cloud
+
+1. Push this repo to GitHub (**public**, for the free tier).
+2. Go to [share.streamlit.io](https://share.streamlit.io) → **New app**.
+3. Repo: your repo · Branch: `main` · Main file: `app.py`
+4. Deploy. First build takes 2–3 minutes.
+
+**Optional** — for one-click report links, add under *Settings → Secrets*:
+
+```toml
+[reports]
+github_user   = "yourname"
+github_repo   = "swingscope"
+pages_enabled = false
+```
+
+No API keys are needed. yfinance, NSE and Google News RSS are all keyless.
+
+### Free-tier notes
+
+- Start with Nifty 50; ~130 tickers is the practical ceiling on a cold start.
+- yfinance rate-limits — results cache for 30 minutes. If you see empty
+  results, wait rather than hammering refresh.
+- The app sleeps after inactivity; first load takes ~30s.
+- **Session state resets on restart.** Download the forward log and journal
+  every session, or rely on the GitHub automation for persistence.
+
+---
+
+## Set up the automation (optional but recommended)
+
+The workflow runs every Monday, records picks to `forward_log.csv`, evaluates
+matured ones, generates reports, and commits everything back.
+
+**1. Enable write permissions**
+Repo → Settings → Actions → General → Workflow permissions → **Read and write**.
+Without this the commit step fails silently and your forward log never grows.
+
+**2. Enable email delivery** (optional)
+Repo → Settings → Secrets and variables → Actions → New repository secret:
+
+| Secret | Example |
+|---|---|
+| `SMTP_HOST` | `smtp.gmail.com` |
+| `SMTP_PORT` | `465` |
+| `SMTP_USER` | `you@gmail.com` |
+| `SMTP_PASS` | Gmail **App Password**, not your account password |
+| `REPORT_TO` | `you@gmail.com` |
+
+**3. Test it** — Actions tab → *SwingScope weekly run* → **Run workflow**.
+
+**Schedules:** Mondays 03:30 UTC (09:00 IST) for the weekly run; the 1st of each
+month 04:00 UTC for the month-end review.
+
+**Run manually:**
+```bash
+python automate.py --universe "Nifty 500" --top 10 --horizon 15
+python automate.py --evaluate-only              # score matured picks only
+python automate.py --monthly --backtest-ic 0.045
+python automate.py --no-pdf                     # skip WeasyPrint
+```
+
+---
+
+## Where reports are saved
+
+```
+reports/
+├── latest.html / .pdf / .txt        always the most recent weekly
+├── latest_monthly.html / .pdf       most recent month-end review
+├── report_YYYYMMDD.*                dated weekly archive
+└── month_end_YYYYMM.*               dated monthly archive
+forward_log.csv                      accumulating pick record
+```
+
+Access them via email, the GitHub `reports/` folder, an Actions artifact
+(90-day retention), or `git pull`. Enable GitHub Pages for one-click browser
+viewing at `https://<user>.github.io/<repo>/reports/latest.html`.
+
+---
+
+## Project structure
 
 ```
 swingscope/
-├── app.py            # Streamlit UI — tabs, sidebar, rendering
-├── scoring.py        # Composite score. Edit WEIGHTS here.
-├── indicators.py     # RSI, MACD, ATR, ADX, Bollinger — pure pandas
-├── newsfeed.py       # Google News RSS + keyword sentiment
-├── config.py         # Stock universes + methodology docs
-└── requirements.txt
+├── app.py                  Streamlit UI — 8 tabs
+│
+│   ── Data & scoring ──
+├── config.py               Benchmark, report links, method docs
+├── universe.py             Live NSE constituents + live market screens
+├── fallback_universe.py    Bundled snapshot for when NSE is unreachable
+├── indicators.py           RSI, MACD, ATR, ADX, Bollinger — pure pandas
+├── scoring.py              Composite score (tier-aware)
+├── tiers.py                Large/mid/small classification and parameters
+├── regime.py               Risk-on / neutral / risk-off gate
+│
+│   ── Evidence ──
+├── backtest.py             Walk-forward simulation, no lookahead
+├── validate.py             Information Coefficient + permutation test
+├── forward_log.py          Forward paper-trading record
+│
+│   ── News ──
+├── newsfeed.py             Google News RSS retrieval
+├── sentiment.py            Finance lexicon, negation, contrast clauses
+│
+│   ── Reporting ──
+├── report.py               Weekly HTML/PDF report + email
+├── monthly.py              Month-end review with confidence calibration
+├── automate.py             Headless runner for CI
+│
+├── requirements.txt
+├── .github/workflows/weekly.yml
+├── .streamlit/secrets.toml.example
+├── .gitignore
+│
+│   ── Docs ──
+├── MANUAL.md               Full user manual (also as PDF)
+├── ROADMAP_30_DAYS.md      Day-by-day validation plan (also as PDF)
+└── README.md
 ```
 
-No TA-Lib dependency — every indicator is implemented in pandas, because
-TA-Lib needs a C build step that Streamlit Cloud doesn't handle cleanly.
+No TA-Lib dependency — every indicator is implemented in pandas, because TA-Lib
+needs a C build step Streamlit Cloud doesn't handle.
 
 ---
 
 ## The score
 
-| Component | Weight | Measures |
-|---|---|---|
-| Trend | 25% | Price vs 20/50/200 EMAs, EMA alignment, ADX 20–40 |
-| Momentum | 20% | RSI(14) 55–65 sweet spot, MACD posture |
-| Volume | 15% | Volume vs 20d average, up-day vs down-day volume |
-| Relative Strength | 20% | 20d and 60d return vs Nifty 50 |
-| Setup | 20% | Bollinger squeeze percentile, distance from 52w high, pullback depth |
+| Component | Large | Mid | Small | Measures |
+|---|---|---|---|---|
+| Trend | 20% | 25% | 30% | Price vs 20/50/200 EMA, alignment, ADX 20–40 |
+| Momentum | 15% | 20% | 28% | RSI in tier-specific band, MACD posture |
+| Volume | 10% | 15% | 22% | Volume vs 20d average, up vs down day volume |
+| Relative strength | 35% | 20% | 10% | 20d and 60d return vs Nifty 50 |
+| Setup | 20% | 20% | 10% | Bollinger squeeze, distance from 52w high, pullback depth |
 
-Two choices worth understanding before you trust the output:
+Two design choices worth understanding before trusting the output:
 
-**RSI > 72 is penalised.** The score peaks at RSI 55–65. Buying extended
-momentum on a 15–20 day horizon is the classic way to get mean-reverted.
+**RSI above the tier band is penalised, not rewarded.** Buying extended momentum
+on a 15–20 day hold is the classic way to get mean-reverted. The band widens for
+small caps (peak 60–75) because small-cap trends genuinely persist longer.
 
-**ADX > 40 scores lower than ADX 20–40.** Extreme trend strength more often
-marks exhaustion than continuation over this window.
+**Relative strength dominates for large caps (35%).** Large caps are mostly index
+beta — one rising slower than the Nifty isn't strong, it's a slower index fund.
+It falls to 10% for small caps, where stock-specific flows dominate and
+comparison to the index is mostly noise.
 
-Disagree with either? Edit `WEIGHTS` and the band logic in `scoring.py`. The
-whole point of the transparent design is that you can.
+Disagree? Edit `TIER_WEIGHTS` in `tiers.py`. The transparency is the point.
+
+---
+
+## Before you trust it
+
+Run **🔬 Validation** first: horizon 15, period 5y, 40 stocks, permutations 400,
+overlapping windows off.
+
+| Mean IC | Interpretation |
+|---|---|
+| ≤ 0 | No signal. Stop. |
+| < 0.02, or p > 0.10 | Indistinguishable from random. Stop. |
+| 0.02–0.06 with p < 0.05 | Weak but real — proceed to paper trading |
+| > 0.15 | Implausibly high. Look for a bug before celebrating. |
+
+Then follow `ROADMAP_30_DAYS.md`. It's a day-by-day plan, most days of which say
+"do nothing" — deliberately.
 
 ---
 
 ## Known limitations
 
-- **Not predictive.** It measures whether a chart *currently resembles* a
-  trend-continuation setup. It says nothing about whether this instance works.
+- **Not predictive.** It measures whether a chart currently resembles a
+  trend-continuation setup, not whether this instance will work.
 - **EOD data only.** Confirm every level on your broker terminal.
-- **No transaction costs modelled.** STT, brokerage, stamp duty, exchange
-  charges and GST materially erode short-hold returns in India. A setup needing
-  a 3% move may need 3.5%+ after costs.
-- **Survivorship bias.** Universes are today's constituents; delisted names are
-  invisible.
+- **Survivorship bias.** Universes are today's constituents; delisted failures
+  are invisible, which flatters any backtest.
+- **Bull-market bias.** Indian equities trended up through most of 2020–2025.
 - **No fundamental screen.** A stock can score 90 while the business rots.
-- **Journal is ephemeral.** Session state resets on restart — download it, or
-  wire it to Google Sheets / Supabase.
-
----
-
-## Extending it
-
-**FII/DII flows** — NSE publishes daily participant-wise data at
-`nsearchives.nseindia.com`. Scraping it is fragile (needs cookie/header
-priming); a paid feed is more reliable.
-
-**Delivery percentage** — high delivery on an up day implies genuine
-accumulation rather than intraday churn. It's in the NSE bhavcopy.
-
-**Bulk & block deals** — published daily by NSE. Large institutional entries
-are among the few genuinely tradeable catalysts.
-
-**Earnings calendar** — `yf.Ticker(x).calendar` returns the next earnings date.
-Worth excluding anything reporting inside your holding window; earnings turn a
-technical setup into a coin flip.
-
-**Sector rotation** — score sector indices with the same model, then prefer
-stocks in the top 2–3 sectors. Over 15–20 days, sector beta often dominates
-single-stock factors.
-
-**Backtesting** — the current build has no backtest. Before trusting the score,
-walk it forward: compute it on historical bars, hold 15–20 days, measure the
-distribution of outcomes. If the edge isn't visible over a few hundred trades,
-it isn't there.
-
----
-
-## Suggested workflow
-
-1. Run the screener **weekly**, not daily. Overtrading is the most reliable way
-   to lose money in this game.
-2. Take the top 10–15 and look at every chart manually. The score reduces what
-   you examine; it doesn't replace examining it.
-3. Check the news tab for anything scheduled inside your window.
-4. Size from ATR, never from conviction.
-5. Log every trade. Review expectancy monthly. **If expectancy is negative over
-   30+ trades, the edge isn't there** — and no position-sizing tweak fixes that.
+- **Sentiment is a lexicon, not comprehension.** Use it to decide what to read,
+  never as a trading input.
+- **NSE fetching is fragile.** NSE blocks bot traffic; the app falls back to a
+  bundled snapshot and labels itself non-live when that happens.
 
 ---
 
 ## Disclaimer
 
 Educational and research use only. Not investment advice. The author is not a
-SEBI-registered investment adviser. Verify all data independently before acting
-on it, and consider consulting a registered adviser.
+SEBI-registered investment adviser. Verify all data independently before acting,
+and consider consulting a registered adviser.

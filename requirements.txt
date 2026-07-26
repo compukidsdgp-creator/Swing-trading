@@ -1,6 +1,18 @@
+# Core — required for the Streamlit app
 streamlit>=1.40
 yfinance>=0.2.50
 pandas>=2.2
 numpy>=1.26
 plotly>=5.20
 requests>=2.31
+
+# Optional — PDF report generation.
+# Deliberately NOT installed on Streamlit Cloud: WeasyPrint needs system
+# libraries (pango, cairo) that aren't available there, and the app never
+# needs PDF — it exports HTML.
+# The GitHub Actions workflow installs it separately for the automated
+# reports. To generate PDFs locally:
+#     pip install weasyprint
+# (Windows also needs the GTK3 runtime; on Linux/macOS pip handles it.)
+#
+# weasyprint>=60.0

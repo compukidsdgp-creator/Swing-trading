@@ -26,6 +26,10 @@ import universe as uni
 import regime as rg
 import tiers as tr
 import backtest as bt
+import validate as val
+import forward_log as flog
+import sentiment as sent
+import report as rep
 
 st.set_page_config(
     page_title="SwingScope — NSE Swing Research",
@@ -202,6 +206,8 @@ def sidebar() -> dict:
     min_score = st.sidebar.slider("Min composite score", 0, 100, 55)
 
     st.sidebar.divider()
+    _report_links_sidebar()
+
     st.sidebar.subheader("Risk")
     capital = st.sidebar.number_input("Trading capital (₹)", min_value=10_000, value=500_000, step=10_000)
     risk_pct = st.sidebar.slider("Risk per trade (%)", 0.25, 5.0, 1.0, 0.25)
@@ -219,6 +225,34 @@ def sidebar() -> dict:
         universe_name=label,
         universe_result=result,
     )
+
+
+def _report_links_sidebar() -> None:
+    """Quick links to the automated reports, if a repo has been configured."""
+    links = config.report_links()
+    if not links:
+        with st.sidebar.expander("📄 Automated reports"):
+            st.caption(
+                "Set `GITHUB_USER` in config.py — or add a `[reports]` section to "
+                "Streamlit secrets — and direct links to your weekly and month-end "
+                "reports will appear here."
+            )
+        return
+
+    with st.sidebar.expander("📄 Automated reports", expanded=False):
+        if "weekly_html" in links:
+            st.link_button("📈 Latest weekly report", links["weekly_html"],
+                           use_container_width=True)
+        if "monthly_html" in links:
+            st.link_button("📊 Latest month-end review", links["monthly_html"],
+                           use_container_width=True)
+        st.link_button("📁 All reports", links["folder"], use_container_width=True)
+        st.link_button("⚙️ Workflow runs", links["actions"], use_container_width=True)
+        if "weekly_html" not in links:
+            st.caption(
+                "Enable GitHub Pages on the repo for one-click viewing; until then "
+                "these open the files on GitHub."
+            )
 
 
 # --------------------------------------------------------------------------
@@ -489,32 +523,116 @@ def _price_chart(df: pd.DataFrame, tkr: str) -> None:
 # --------------------------------------------------------------------------
 def render_news(cfg: dict, shortlist: pd.DataFrame) -> None:
     st.subheader("News & Catalysts")
-    st.caption(
-        "Headlines from Google News RSS. Sentiment is a crude keyword score — "
-        "treat it as a triage aid, not a signal."
-    )
 
     if not shortlist.empty:
-        default = list(shortlist["Ticker"].head(6))
+        default = list(shortlist["Ticker"].head(8))
     else:
-        default = [t.replace(".NS", "") for t in cfg["tickers"][:6]]
+        default = [t.replace(".NS", "") for t in cfg["tickers"][:8]]
 
-    picks = st.multiselect("Stocks", [t.replace(".NS", "") for t in cfg["tickers"]], default=default)
+    picks = st.multiselect(
+        "Stocks", [t.replace(".NS", "") for t in cfg["tickers"]], default=default
+    )
     if not picks:
         st.info("Pick at least one stock.")
         return
 
+    with st.spinner(f"Fetching headlines for {len(picks)} stocks…"):
+        feeds = {name: newsfeed.fetch(name, limit=12) for name in picks}
+        results = [sent.analyse_stock(name, items) for name, items in feeds.items()]
+
+    report = sent.portfolio_report(results)
+
+    # ---------------- Report panel ----------------
+    st.markdown("### 📋 Sentiment snapshot")
+    if "error" in report:
+        st.warning(report["error"])
+    else:
+        m = st.columns(5)
+        m[0].metric("Covered", f"{report['stocks_covered']}/{len(picks)}")
+        m[1].metric("Headlines", report["total_headlines"])
+        m[2].metric("Bullish", report["bullish"])
+        m[3].metric("Bearish", report["bearish"])
+        m[4].metric("Avg score", f"{report['avg_sentiment']:+.2f}")
+
+        avg = report["avg_sentiment"]
+        if avg >= 0.7:
+            st.success(f"Overall tone across your watchlist is positive ({avg:+.2f}).")
+        elif avg <= -0.7:
+            st.error(
+                f"Overall tone is negative ({avg:+.2f}). Be sceptical of long setups "
+                "while the news flow is against you."
+            )
+        else:
+            st.info(f"Overall tone is mixed or neutral ({avg:+.2f}).")
+
+        c1, c2 = st.columns(2)
+        mp, mn = report.get("most_positive"), report.get("most_negative")
+        if mp:
+            c1.markdown(
+                f"**🟢 Most positive — {mp.ticker}** ({mp.label}, {mp.mean_score:+.2f})"
+                + (f"\n\n_{mp.top_positive}_" if mp.top_positive else "")
+            )
+        if mn:
+            c2.markdown(
+                f"**🔴 Most negative — {mn.ticker}** ({mn.label}, {mn.mean_score:+.2f})"
+                + (f"\n\n_{mn.top_negative}_" if mn.top_negative else "")
+            )
+
+        if report["top_catalysts"]:
+            st.markdown("**Catalyst types detected:** " + " · ".join(
+                f"`{k.replace('_',' ')}` ×{v}" for k, v in report["top_catalysts"]
+            ))
+
+        if report["flagged_count"]:
+            with st.expander(f"⚠️ {report['flagged_count']} stocks with alerts", expanded=True):
+                for r in report["flagged"]:
+                    st.markdown(f"**{r.ticker}**")
+                    for al in r.alerts:
+                        st.markdown(f"- {al}")
+
+        rows = [{
+            "Stock": r.ticker, "Sentiment": r.label, "Score": r.mean_score,
+            "Confidence": r.confidence, "Headlines": r.n_headlines,
+            "Pos": r.pos, "Neg": r.neg, "Neutral": r.neu,
+            "Catalysts": ", ".join(r.catalysts) if r.catalysts else "—",
+        } for r in sorted(results, key=lambda x: x.mean_score, reverse=True)]
+        st.dataframe(
+            pd.DataFrame(rows), hide_index=True, use_container_width=True,
+            column_config={
+                "Score": st.column_config.NumberColumn("Score", format="%+.2f"),
+            },
+        )
+
+    st.caption(
+        "Sentiment uses a weighted financial lexicon with negation and contrast-clause "
+        "handling — it reads \"shares fall despite strong profit\" correctly. It is still "
+        "a lexicon model, not comprehension. **Use it to decide what to read, never as a "
+        "trading signal.** The main value here is catching scheduled events — especially "
+        "earnings — inside your holding window."
+    )
+
+    # ---------------- Headlines ----------------
+    st.markdown("### 📰 Headlines")
+    order = {r.ticker: r for r in results}
     for name in picks:
-        with st.expander(f"📰 {name}", expanded=len(picks) <= 3):
-            items = newsfeed.fetch(name)
+        r = order.get(name)
+        badge = {"Bullish": "🟢", "Leaning bullish": "🟢", "Bearish": "🔴",
+                 "Leaning bearish": "🔴", "Mixed": "🟡", "Neutral": "⚪",
+                 "No data": "⚫"}.get(r.label if r else "No data", "⚪")
+        title = f"{badge} {name} — {r.label} ({r.mean_score:+.2f}, {r.n_headlines} items)" if r else name
+        with st.expander(title, expanded=len(picks) <= 3):
+            items = feeds.get(name, [])
             if not items:
                 st.caption("No recent headlines found.")
                 continue
-            for it in items[:8]:
-                tone = newsfeed.score_headline(it["title"])
-                badge = {"pos": "🟢", "neg": "🔴", "neu": "⚪"}[tone]
-                st.markdown(f"{badge} [{it['title']}]({it['link']})")
-                st.caption(f"{it['source']} · {it['published']}")
+            for it in items[:10]:
+                sc = sent.score_text(it["title"])
+                dot = {"pos": "🟢", "neg": "🔴", "neu": "⚪"}[sc.label]
+                st.markdown(f"{dot} **{sc.score:+.1f}** · [{it['title']}]({it['link']})")
+                meta = f"{it['source']} · {it['published']}"
+                if sc.catalysts:
+                    meta += " · " + ", ".join(f"`{c.replace('_',' ')}`" for c in sc.catalysts)
+                st.caption(meta)
 
 
 # --------------------------------------------------------------------------
@@ -550,7 +668,8 @@ def render_journal() -> None:
                 "Stop": stop, "Target": target, "Qty": qty,
                 "Exit": exit_px, "Notes": notes,
             }])
-            st.session_state.journal = pd.concat([st.session_state.journal, row], ignore_index=True)
+            st.session_state.journal = pd.concat([st.session_state.journal, row],
+                                                 ignore_index=True)
 
     j = st.session_state.journal
     if j.empty:
@@ -575,8 +694,8 @@ def render_journal() -> None:
 
         if exp <= 0:
             st.warning(
-                "Negative expectancy: this strategy loses money over time regardless of win rate. "
-                "Check whether your losers are running past their stops."
+                "Negative expectancy: this strategy loses money over time regardless of "
+                "win rate. Check whether your losers are running past their stops."
             )
 
     st.dataframe(j, use_container_width=True, hide_index=True)
@@ -648,8 +767,9 @@ def render_backtest(cfg: dict) -> None:
         )
     if exp <= 0:
         st.error(
-            f"**Negative expectancy ({exp:+.3f}R).** This configuration loses money over time "
-            "regardless of win rate. Do not trade it. Change the rules, not the position sizing."
+            f"**Negative expectancy ({exp:+.3f}R).** This configuration loses money over "
+            "time regardless of win rate. Do not trade it. Change the rules, not the "
+            "position sizing."
         )
     else:
         st.success(
@@ -668,7 +788,8 @@ def render_backtest(cfg: dict) -> None:
         "This is the real test. If expectancy does **not** rise with score, the score "
         "is not ranking anything and the whole model is decoration."
     )
-    st.dataframe(bt.summarize(trades, "score_bucket"), hide_index=True, use_container_width=True)
+    st.dataframe(bt.summarize(trades, "score_bucket"), hide_index=True,
+                 use_container_width=True)
 
     ec = bt.equity_curve(trades, cfg["risk_pct"], cfg["capital"])
     if not ec.empty:
@@ -684,6 +805,292 @@ def render_backtest(cfg: dict) -> None:
                      hide_index=True, use_container_width=True)
     st.download_button("Download trades (CSV)", trades.to_csv(index=False).encode(),
                        file_name="backtest_trades.csv", mime="text/csv")
+
+
+# --------------------------------------------------------------------------
+# Forward log tab — the only evidence that cannot be overfitted
+# --------------------------------------------------------------------------
+def render_forward_log(cfg: dict, shortlist: pd.DataFrame) -> None:
+    st.subheader("Forward paper-trading log")
+    st.caption(
+        "A backtest can be tuned until it flatters you. A forward log cannot — the picks "
+        "are committed before the outcome exists. Eight weeks of this is worth more than "
+        "any amount of historical optimisation."
+    )
+
+    if "fwd_log" not in st.session_state:
+        st.session_state.fwd_log = flog.empty_log()
+
+    up = st.file_uploader("Load existing log (CSV)", type="csv")
+    if up is not None and st.button("Load"):
+        st.session_state.fwd_log = flog.from_csv(up.read())
+        st.success(f"Loaded {len(st.session_state.fwd_log)} rows.")
+
+    log = st.session_state.fwd_log
+
+    st.markdown("##### 1. Record this week's picks")
+    c = st.columns(3)
+    top_n = c[0].slider("Picks to record", 5, 20, 10)
+    horizon = c[1].slider("Horizon (trading days)", 10, 25, 15)
+    snap_date = c[2].date_input("Snapshot date", dt.date.today())
+
+    if shortlist is None or shortlist.empty:
+        st.info("Run the Screener first — it supplies the picks to record.")
+    else:
+        st.caption(f"Screener currently has {len(shortlist)} names passing filters.")
+        if st.button("📸 Snapshot top picks", type="primary"):
+            reg = st.session_state.get("regime")
+            st.session_state.fwd_log = flog.record_snapshot(
+                log, shortlist, regime_state=(reg.state if reg else "unknown"),
+                horizon=horizon, top_n=top_n, snapshot_date=snap_date,
+            )
+            log = st.session_state.fwd_log
+            st.success(f"Recorded. Log now has {len(log)} entries. Download it before closing.")
+
+    st.markdown("##### 2. Evaluate matured picks")
+    if log.empty:
+        st.info("Nothing logged yet.")
+    else:
+        n_open = int((log["status"] == "open").sum())
+        st.caption(f"{n_open} picks still open, {int((log['status']=='evaluated').sum())} evaluated.")
+        if n_open and st.button("Fetch prices and evaluate"):
+            tickers = tuple(f"{t}.NS" for t in log.loc[log["status"] == "open", "ticker"].unique())
+            with st.spinner(f"Fetching {len(tickers)} tickers…"):
+                frames = fetch_history(tickers, period="6mo")
+            lookup = {t.replace(".NS", ""): float(df["Close"].iloc[-1])
+                      for t, df in frames.items() if df is not None and len(df)}
+            st.session_state.fwd_log, filled = flog.evaluate_open(log, lookup)
+            log = st.session_state.fwd_log
+            st.success(f"Evaluated {filled} picks.") if filled else st.info(
+                "None have reached their evaluation date yet."
+            )
+
+    st.markdown("##### 3. Results")
+    res = flog.analyse(log)
+    if "error" in res:
+        st.info(res["error"])
+    else:
+        m = st.columns(5)
+        m[0].metric("Evaluated", res["evaluated_picks"])
+        m[1].metric("Mean return", f"{res['mean_return_pct']:+.2f}%")
+        m[2].metric("Hit rate", f"{res['hit_rate_pct']}%")
+        m[3].metric("Forward IC", f"{res['forward_ic']}" if res["forward_ic"] is not None else "—")
+        m[4].metric("Snapshots", res["snapshots"])
+
+        if res["snapshots"] < 6:
+            st.warning(
+                f"Only {res['snapshots']} snapshots. Wide error bars — keep logging weekly. "
+                "Draw conclusions at 8+."
+            )
+
+        if res.get("mean_excess_pct") is not None:
+            st.caption(
+                f"Mean excess vs benchmark: {res['mean_excess_pct']:+.2f}% · "
+                f"beat benchmark {res['beat_bench_pct']}% of the time"
+            )
+
+        st.markdown("**By score bucket** — the honest test. Does return rise with score?")
+        st.dataframe(flog.by_dimension(log, "score_bucket"), hide_index=True,
+                     use_container_width=True)
+        st.markdown("**By tier**")
+        st.dataframe(flog.by_dimension(log, "tier"), hide_index=True, use_container_width=True)
+        st.markdown("**By regime**")
+        st.dataframe(flog.by_dimension(log, "regime"), hide_index=True, use_container_width=True)
+
+        st.markdown("##### 4. Forward vs backtest")
+        bt_ic = st.number_input(
+            "Backtest IC from the Validation tab", value=0.0, step=0.005, format="%.4f",
+            help="Paste the mean IC the Validation tab reported. This comparison is the "
+                 "single most informative number in the whole app.",
+        )
+        if bt_ic:
+            st.info(flog.compare_to_backtest(res["forward_ic"], bt_ic))
+
+    if not log.empty:
+        st.markdown("##### 5. Export")
+        d1, d2 = st.columns(2)
+        d1.download_button("⬇ Log (CSV)", flog.to_csv(log),
+                           file_name=f"forward_log_{dt.date.today()}.csv",
+                           mime="text/csv", use_container_width=True)
+
+        reg = st.session_state.get("regime")
+        html_text = rep.build_html(
+            generated=dt.datetime.now(),
+            universe_name=cfg.get("universe_name", "—"),
+            universe_live=bool(cfg.get("universe_result") and cfg["universe_result"].is_live),
+            n_tickers=len(cfg.get("tickers", ())),
+            regime_state=(reg.state if reg else "neutral"),
+            regime_desc=(reg.description if reg else ""),
+            regime_pct=(reg.pct_from_200dma if reg else 0.0),
+            breadth=(reg.breadth if reg else None),
+            picks=(shortlist.head(10).reset_index(drop=True).assign(
+                       Rank=range(1, min(10, len(shortlist)) + 1))
+                   if shortlist is not None and not shortlist.empty else None),
+            forward_summary=res if "error" not in res else None,
+            bucket_table=flog.by_dimension(log, "score_bucket"),
+            tier_table=flog.by_dimension(log, "tier"),
+        )
+        d2.download_button("⬇ Report (HTML)", html_text.encode(),
+                           file_name=f"swingscope_report_{dt.date.today()}.html",
+                           mime="text/html", use_container_width=True)
+        st.caption(
+            "The HTML report is self-contained — open it in any browser or forward it by "
+            "email. Reports generated here are **not** saved anywhere: Streamlit's "
+            "filesystem resets, so download it now if you want to keep it."
+        )
+
+        links = config.report_links()
+        if links:
+            st.markdown("##### 6. Automated reports")
+            st.caption("Produced weekly by GitHub Actions and stored in your repo.")
+            b = st.columns(4)
+            if "weekly_html" in links:
+                b[0].link_button("📈 Weekly", links["weekly_html"],
+                                 use_container_width=True)
+                b[1].link_button("📊 Month-end", links["monthly_html"],
+                                 use_container_width=True)
+            else:
+                b[0].link_button("📈 Weekly PDF", links["weekly_pdf"],
+                                 use_container_width=True)
+                b[1].link_button("📊 Month-end PDF", links["monthly_pdf"],
+                                 use_container_width=True)
+            b[2].link_button("📁 Archive", links["folder"], use_container_width=True)
+            b[3].link_button("⚙️ Runs", links["actions"], use_container_width=True)
+            st.caption(
+                f"Committed forward log: [forward_log.csv]({links['log_csv']}) — "
+                "this is the persistent copy; the in-app log resets on restart."
+            )
+        else:
+            st.info(
+                "**Want one-click access to your automated reports?** Set `GITHUB_USER` "
+                "in `config.py`, or add this to Streamlit secrets:\n\n"
+                "```toml\n[reports]\ngithub_user = \"yourname\"\n"
+                "github_repo = \"swingscope\"\npages_enabled = true\n```",
+                icon="🔗",
+            )
+        st.caption(
+            "**Download every session.** The log lives in session state and is lost on restart. "
+            "For permanent storage, wire flog.to_csv/from_csv to Google Sheets."
+        )
+        with st.expander("Full log"):
+            st.dataframe(log, hide_index=True, use_container_width=True)
+
+
+# --------------------------------------------------------------------------
+# Validation tab — does the score rank forward returns?
+# --------------------------------------------------------------------------
+def render_validation(cfg: dict) -> None:
+    st.subheader("Predictive validation (Information Coefficient)")
+    st.caption(
+        "Different question from the backtest. This asks: **does a higher score correspond "
+        "to a higher forward return?** At each rebalance date every stock is scored using only "
+        "data available then, and the rank correlation between score and the next N days' "
+        "return is measured. That correlation is the Information Coefficient."
+    )
+
+    c = st.columns(4)
+    horizon = c[0].slider("Forward horizon (days)", 5, 30, 15)
+    years = c[1].select_slider("Test period", ["1y", "2y", "5y", "10y"], value="5y")
+    n_stocks = c[2].slider("Stocks", 15, 100, 40, 5)
+    n_perm = c[3].select_slider("Permutations", [100, 200, 400, 800], value=400)
+
+    overlap = st.checkbox(
+        "Use overlapping windows", value=False,
+        help="Overlapping windows give more data points but correlated ones, which inflates "
+             "the t-statistic. Leave off for an honest significance test.",
+    )
+
+    with st.expander("How to read the result"):
+        st.markdown(
+            "| Mean IC | Interpretation |\n|---|---|\n"
+            "| < 0.02 | No meaningful signal |\n"
+            "| 0.02 – 0.04 | Weak, maybe tradeable after costs |\n"
+            "| 0.04 – 0.06 | Good for a retail-accessible factor |\n"
+            "| 0.06 – 0.10 | Strong |\n"
+            "| > 0.15 | Suspicious — check for lookahead bias |\n\n"
+            "**The t-statistic matters as much as the mean.** IC of 0.05 over 20 windows is "
+            "noise; IC of 0.03 over 100 windows with t > 2 is a finding.\n\n"
+            "**The permutation p-value is the honest check.** The same pipeline is re-run with "
+            "scores randomly shuffled. If your real result sits inside that null distribution, "
+            "you have found nothing — however good the headline number looks."
+        )
+
+    if not st.button("Run validation", type="primary"):
+        st.info("This takes 1–3 minutes for 40 stocks over 5 years.")
+        return
+
+    tickers = tuple(cfg["tickers"][:n_stocks])
+    with st.spinner(f"Fetching {years} history for {len(tickers)} tickers…"):
+        frames = fetch_history(tickers, period=years)
+        bench = fetch_history((config.BENCHMARK,), period=years).get(config.BENCHMARK)
+
+    if not frames:
+        st.error("No data returned — yfinance may be rate-limiting. Wait and retry.")
+        return
+
+    with st.spinner("Walking forward and permuting…"):
+        res = val.run_ic(frames, bench, horizon=horizon,
+                         step=max(1, horizon // 3) if overlap else horizon,
+                         n_permutations=n_perm)
+
+    if "error" in res.summary:
+        st.error(f"Could not run: {res.summary['error']}")
+        return
+
+    s_ = res.summary
+    m = st.columns(5)
+    m[0].metric("Mean IC", f"{s_['mean_ic']:+.4f}")
+    m[1].metric("t-statistic", f"{s_['t_stat']}")
+    m[2].metric("Windows", s_["windows"])
+    m[3].metric("Positive IC", f"{s_['pct_positive_ic']}%")
+    m[4].metric("Permutation p", f"{s_['permutation_p_value']}")
+
+    level, message = val.verdict(s_)
+    {"good": st.success, "warn": st.warning, "bad": st.error, "error": st.error}[level](message)
+
+    st.markdown("##### Forward return by score quintile")
+    st.caption(
+        "The clearest read in the whole app. Q5 is the highest-scoring fifth. "
+        "If mean return does not climb from Q1 to Q5, the score is not ranking anything."
+    )
+    st.dataframe(res.buckets, hide_index=True, use_container_width=True)
+    st.bar_chart(res.buckets.set_index("quintile")["mean"])
+
+    if s_["quintiles_monotonic"]:
+        st.success("Quintiles are monotonic — return rises consistently with score.")
+    else:
+        st.warning(
+            "Quintiles are NOT monotonic. The score may separate extremes without "
+            "ranking cleanly in between."
+        )
+
+    st.markdown("##### IC over time")
+    st.caption("Consistency matters more than any single window. Look for persistence, not spikes.")
+    st.line_chart(res.windows.set_index("date")["ic"])
+
+    st.markdown("##### Top-minus-bottom quintile spread, by window")
+    st.line_chart(res.windows.set_index("date")["spread"])
+
+    if res.null_ic is not None and len(res.null_ic):
+        st.markdown("##### Permutation null distribution")
+        st.caption(
+            f"Mean IC from {len(res.null_ic)} runs with shuffled scores. Your actual result "
+            f"({s_['mean_ic']:+.4f}) sits {s_.get('z_vs_null')} standard deviations from this null."
+        )
+        st.bar_chart(pd.Series(res.null_ic).round(3).value_counts().sort_index())
+
+    with st.expander("Per-window detail"):
+        st.dataframe(res.windows, hide_index=True, use_container_width=True)
+    st.download_button("Download windows (CSV)", res.windows.to_csv(index=False).encode(),
+                       file_name="ic_windows.csv", mime="text/csv")
+
+    st.info(
+        "**Two biases inflate these numbers.** The universe is today's index members, so "
+        "companies that failed and were removed are invisible (survivorship bias). And Indian "
+        "equities trended up through most of the last five years, which flatters any long-only "
+        "model. Treat a good result as necessary evidence, not sufficient.",
+        icon="⚠️",
+    )
 
 
 # --------------------------------------------------------------------------
@@ -707,7 +1114,7 @@ def main() -> None:
         icon="⚠️",
     )
 
-    tabs = st.tabs(["🔍 Screener", "📊 Detail", "🧪 Backtest", "📰 News", "📓 Journal", "❓ Method"])
+    tabs = st.tabs(["🔍 Screener", "📊 Detail", "🧪 Backtest", "🔬 Validation", "📋 Forward log", "📰 News", "📓 Journal", "❓ Method"])
 
     with tabs[0]:
         shortlist = render_screener(cfg)
@@ -716,10 +1123,14 @@ def main() -> None:
     with tabs[2]:
         render_backtest(cfg)
     with tabs[3]:
-        render_news(cfg, shortlist)
+        render_validation(cfg)
     with tabs[4]:
-        render_journal()
+        render_forward_log(cfg, shortlist)
     with tabs[5]:
+        render_news(cfg, shortlist)
+    with tabs[6]:
+        render_journal()
+    with tabs[7]:
         st.markdown(config.METHOD_DOC)
 
 

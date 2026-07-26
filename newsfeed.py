@@ -13,6 +13,8 @@ import xml.etree.ElementTree as ET
 import requests
 import streamlit as st
 
+import sentiment
+
 RSS = "https://news.google.com/rss/search?q={q}&hl=en-IN&gl=IN&ceid=IN:en"
 
 POSITIVE = {
@@ -59,17 +61,5 @@ def fetch(company: str, limit: int = 10) -> list[dict]:
 
 
 def score_headline(title: str) -> str:
-    """Crude keyword sentiment. Returns 'pos' | 'neg' | 'neu'.
-
-    Deliberately simple and deliberately fallible — headlines are written to
-    be ambiguous ("shares fall despite strong profit"). Use it to triage what
-    to read, never as a trading input.
-    """
-    words = set(title.lower().replace(",", " ").replace(".", " ").split())
-    pos = len(words & POSITIVE)
-    neg = len(words & NEGATIVE)
-    if pos > neg:
-        return "pos"
-    if neg > pos:
-        return "neg"
-    return "neu"
+    """Delegates to the sentiment module. Kept for backwards compatibility."""
+    return sentiment.score_headline(title)

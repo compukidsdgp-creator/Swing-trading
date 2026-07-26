@@ -2,6 +2,52 @@
 
 BENCHMARK = "^NSEI"  # Nifty 50
 
+# --------------------------------------------------------------------------
+# Report hosting links
+# --------------------------------------------------------------------------
+# Set these to your own repo and the buttons appear automatically in the app.
+# You can override any of them without editing code by adding a [reports]
+# section to .streamlit/secrets.toml (or Streamlit Cloud -> Settings -> Secrets):
+#
+#   [reports]
+#   github_user = "compukidsdgp-creator"
+#   github_repo = "Swing-trading"
+#   pages_enabled = true
+#
+GITHUB_USER = "compukidsdgp-creator"          # e.g. "yourname"
+GITHUB_REPO = "Swing-trading"
+PAGES_ENABLED = False     # True once GitHub Pages is switched on for the repo
+
+
+def report_links() -> dict[str, str]:
+    """Build report URLs from config, overridden by st.secrets if present."""
+    user, repo, pages = GITHUB_USER, GITHUB_REPO, PAGES_ENABLED
+    try:
+        import streamlit as st
+        sec = st.secrets.get("reports", {}) if hasattr(st, "secrets") else {}
+        user = sec.get("github_user", user)
+        repo = sec.get("github_repo", repo)
+        pages = bool(sec.get("pages_enabled", pages))
+    except Exception:
+        pass
+
+    if not user:
+        return {}
+
+    base = f"https://github.com/{user}/{repo}"
+    links = {
+        "folder": f"{base}/tree/main/reports",
+        "actions": f"{base}/actions",
+        "log_csv": f"{base}/blob/main/forward_log.csv",
+        "weekly_pdf": f"{base}/raw/main/reports/latest.pdf",
+        "monthly_pdf": f"{base}/raw/main/reports/latest_monthly.pdf",
+    }
+    if pages:
+        pbase = f"https://{user}.github.io/{repo}/reports"
+        links["weekly_html"] = f"{pbase}/latest.html"
+        links["monthly_html"] = f"{pbase}/latest_monthly.html"
+    return links
+
 _NIFTY50 = [
     "RELIANCE", "HDFCBANK", "ICICIBANK", "INFY", "TCS", "BHARTIARTL", "SBIN",
     "LT", "ITC", "HINDUNILVR", "AXISBANK", "KOTAKBANK", "BAJFINANCE", "MARUTI",

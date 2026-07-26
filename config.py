@@ -95,77 +95,79 @@ UNIVERSES: dict[str, tuple[str, ...]] = {
 
 
 METHOD_DOC = """
-## How the score is built
+## The signal
 
-The composite is a weighted blend of five bounded sub-scores. Nothing is hidden —
-if you disagree with a weighting, edit `WEIGHTS` in `scoring.py`.
+**12-1 momentum.** Return over the past 12 months, excluding the most recent
+month. Stocks are ranked against each other; the score is a percentile within
+today's universe.
 
-| Component | Weight | What it measures |
+That is the whole model.
+
+## How it got here
+
+The original version blended five components — Trend, Momentum, Volume,
+Relative Strength, Setup — with weights chosen by reasoning about what should
+matter. Factor analysis showed all five measured the same underlying thing:
+
+| Test | Result |
+|---|---|
+| Raw IC | +0.0506 |
+| Residual IC after neutralising six known factors | **+0.0041** |
+| IC retention | **13.9%** |
+| Fama-MacBeth t on the score | **0.17** |
+| Correlation with one-month return | 0.76 |
+
+The composite predicted nothing once momentum, reversal, size, volatility, beta
+and liquidity were controlled for. It was momentum wearing five costumes.
+
+Twelve candidate signals were then tested individually. Ten showed no
+incremental content. Of the two survivors, one was rejected as redundant
+(`idiosyncratic_mom`, correlation 0.971 with 12-1 momentum). One remained.
+
+| Evidence for 12-1 momentum | |
+|---|---|
+| Residual IC | +0.0553 |
+| Newey-West t | **3.73** (clears the Harvey-Liu-Zhu t>3 bar) |
+| Positive windows | 59.7% of 62 |
+
+## What this is not
+
+Momentum was published by Jegadeesh & Titman in 1993 and replicated across
+almost every market since. This is not a discovery. What has been established is
+that the effect is present and measurable in the Nifty 500 at a 15-day horizon,
+and that elaborate scoring added nothing to it.
+
+## Cost reality
+
+IC 0.048 implies roughly a 0.5-0.6pp spread between top and bottom quintile per
+15 days. Against modelled round-trip costs:
+
+| Tier | Cost | Verdict |
 |---|---|---|
-| **Trend** | 25% | Price above 20/50/200 EMAs, EMA alignment, ADX between 20–40 |
-| **Momentum** | 20% | RSI(14) in the 55–65 sweet spot, MACD histogram positive and above signal |
-| **Volume** | 15% | Recent volume vs 20-day average; up-day volume vs down-day volume |
-| **Relative Strength** | 20% | 20-day and 60-day return versus Nifty 50 |
-| **Setup** | 20% | Bollinger squeeze percentile, distance from 52-week high, pullback depth |
+| Large | 0.25% | edge survives |
+| Mid | 0.60% | roughly breakeven |
+| Small | 1.50% | **consumed entirely** |
 
-### Deliberate design choices
+Small caps are excluded regardless of rank. Being right about a stock you cannot
+trade profitably is not an edge.
 
-**RSI above 72 is penalised, not rewarded.** On a 15–20 day hold, buying extended
-momentum is how swing traders get caught in mean reversion. The score peaks at
-RSI 55–65.
+## Two things to watch
 
-**ADX above 40 scores lower than ADX 20–40.** Extreme trend strength more often
-marks exhaustion than continuation over this horizon.
+**Percentile ranking is relative.** A score of 100 means "strongest momentum in
+today's universe", not "strong". In a falling market that could be a stock down
+1% while everything else is down 30%. The absolute momentum floor exists to stop
+this, and should stay on.
 
-**Volume is a confirmation filter, not a driver.** It carries only 15% because
-volume without trend is noise, but a breakout on thin volume fails often enough
-that it needs to cost something.
+**Everything above is measured on selection data**, and is optimistic by
+construction. The forward log is the only un-overfittable evidence. Give it
+eight weeks before trusting any of it.
 
-**Relative strength is weighted heavily (20%).** Over 15–20 days, sector and market
-beta dominate single-stock factors. A stock rising less than the index is not
-actually strong.
+## What this still cannot fix
 
----
-
-## What this tool cannot do
-
-- **It is not predictive.** It measures whether a chart currently resembles a
-  trend-continuation setup. Base rates for such setups are modest, and this
-  says nothing about whether *this* instance works.
-- **Data is end-of-day, delayed.** yfinance is not a live feed. Confirm every
-  level on your broker terminal.
-- **No fundamental screening.** A stock can score 90 while the business
-  deteriorates. Pair this with fundamentals.
-- **Survivorship bias in the universe.** The lists are today's constituents.
-  Anything delisted or removed is invisible.
-- **No transaction costs modelled.** In Indian markets, STT, brokerage, stamp
-  duty, exchange and GST charges materially erode short-hold returns. A setup
-  needing a 3% move to be worthwhile may need 3.5% after costs.
-
-## Suggested workflow
-
-1. Run the screener weekly, not daily — overtrading is the most reliable way
-   to lose money in swing trading.
-2. Take the top 10–15 and check each chart manually. The score is a filter to
-   reduce what you look at, not a substitute for looking.
-3. Read the news tab for anything scheduled — earnings inside your holding
-   window turn a technical trade into a coin flip.
-4. Size positions from ATR, not conviction.
-5. Log every trade. Review expectancy monthly. If expectancy is negative over
-   30+ trades, the edge is not there and no amount of position sizing fixes it.
-
-## Extending this
-
-- **FII/DII flows**: NSE publishes daily participant-wise data. Scrape
-  `nsearchives.nseindia.com` (fragile, needs headers/cookies) or use a paid feed.
-- **Delivery percentage**: high delivery on an up move implies genuine
-  accumulation rather than intraday churn. NSE bhavcopy has this.
-- **Bulk/block deals**: NSE publishes these daily; large institutional entries
-  are a real catalyst.
-- **Earnings calendar**: `yf.Ticker(x).calendar` gives next earnings date —
-  worth excluding stocks reporting inside your window.
-- **Sector rotation**: score sector indices with the same model and prefer
-  stocks in the top 2–3 sectors.
-- **Persistence**: journal resets on restart. Wire it to Google Sheets
-  (`gspread`) or Supabase for durable storage.
+- **Delisting survivorship bias.** Companies wound up have no retrievable
+  history. Point-in-time liquidity filtering removes index-membership bias but
+  not this. Assume results remain modestly inflated.
+- **Data quality.** yfinance carries known defects. The audit catches the worst.
+- **History depth.** Five years, one market. Serious factor work wants twenty
+  years across several.
 """

@@ -96,6 +96,7 @@ def rank_universe(
     min_turnover_cr: float = 25.0,
     require_above_50ema: bool = True,
     tier_filter: set[str] | None = None,
+    min_momentum: float | None = 0.0,
 ) -> pd.DataFrame:
     """Rank a universe by momentum, cross-sectionally.
 
@@ -107,6 +108,18 @@ def rank_universe(
       * liquidity, because slippage eats a 0.5pp edge quickly
       * price above 50 EMA, as a crude trend confirmation
       * tier, because costs vary by an order of magnitude across tiers
+      * an absolute momentum floor (see below)
+
+    Why the absolute floor matters
+    ------------------------------
+    A percentile rank is purely relative. Without a floor, "Score >= 55" passes
+    roughly the top 45% of the universe whether every stock is up 100% or every
+    stock is down 50% — in a falling market it happily promotes the best of a
+    bad set and stamps it 100. The floor (default: 12-1 momentum must be
+    positive) restores an absolute quality gate that percentile ranking removes.
+
+    Set min_momentum=None to disable, which is appropriate only for research
+    where you want the full cross-section.
     """
     rows = []
     for tkr, df in frames.items():
@@ -119,6 +132,8 @@ def rank_universe(
 
         mom = raw_momentum(e)
         if not np.isfinite(mom):
+            continue
+        if min_momentum is not None and mom < min_momentum:
             continue
 
         last = e.iloc[-1]
@@ -148,6 +163,7 @@ def rank_universe(
             "Turnover_Cr": round(turnover, 1),
             "Above_50EMA": above,
             "Cost_viable": tier in RECOMMENDED_TIERS,
+            "Mom_positive": mom > 0,
         })
 
     if not rows:

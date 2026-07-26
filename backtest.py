@@ -25,6 +25,7 @@ import numpy as np
 import pandas as pd
 
 import indicators as ind
+import momentum as momo
 import regime as rg
 import tiers as tr
 
@@ -49,8 +50,30 @@ class Trade:
     ret_pct: float
 
 
+def _momentum_at(e: pd.DataFrame, i: int, be: pd.DataFrame | None = None,
+                 tier: str | None = None) -> float:
+    """12-1 momentum at bar i — the validated v2 signal.
+
+    Signature matches _score_at so either can be passed as `scorer`.
+    """
+    return momo.raw_momentum(e, i)
+
+
+def get_scorer(model: str = "momentum"):
+    """Return the scoring function for a model name.
+
+    'momentum'     — validated: residual IC +0.055, Newey-West t = 3.73
+    'composite_v1' — failed validation: residual IC +0.004, t = 0.17
+    """
+    return _momentum_at if model == "momentum" else _score_at
+
+
 def _score_at(e: pd.DataFrame, i: int, be: pd.DataFrame | None, tier: str) -> float:
-    """Composite score at bar i using only data up to i. Mirrors scoring.evaluate."""
+    """Composite score at bar i using only data up to i. Mirrors scoring.evaluate.
+
+    NOTE: this is the v1 composite, which FAILED factor neutralisation
+    (residual IC +0.004, t = 0.17). Retained for comparison only.
+    """
     row = e.iloc[i]
     close = float(row["Close"])
     if not np.isfinite(close) or close <= 0:
@@ -166,6 +189,7 @@ def run(
     rebalance_every: int = 5,
     use_regime_filter: bool = True,
     apply_costs: bool = True,
+    model: str = "momentum",
 ) -> pd.DataFrame:
     """Walk every stock forward, recording trades the rules would have taken.
 
@@ -173,6 +197,8 @@ def run(
     recommended workflow — and cutting compute by 5x.
     """
     bench_e = ind.enrich(bench) if bench is not None and len(bench) > 200 else None
+    scorer = get_scorer(model)
+    momentum_mode = model == "momentum"
     trades: list[Trade] = []
 
     for ticker, df in frames.items():
@@ -196,16 +222,27 @@ def run(
                 continue
 
             try:
-                score = _score_at(e, i, bench_e, tier)
+                score = scorer(e, i, bench_e, tier)
             except Exception:
                 i += rebalance_every
                 continue
-
-            rsi_lo, rsi_hi = p["rsi_band"]
-            rsi_v = float(e["RSI14"].iloc[i])
-            if score < min_score or not (rsi_lo <= rsi_v <= rsi_hi):
+            if not np.isfinite(score):
                 i += rebalance_every
                 continue
+
+            # In momentum mode the raw value is a percentage return, not a
+            # 0-100 score, so min_score is interpreted as a momentum floor and
+            # the RSI band is not applied (it is not part of the v2 signal).
+            if momentum_mode:
+                if score < 0:
+                    i += rebalance_every
+                    continue
+            else:
+                rsi_lo, rsi_hi = p["rsi_band"]
+                rsi_v = float(e["RSI14"].iloc[i])
+                if score < min_score or not (rsi_lo <= rsi_v <= rsi_hi):
+                    i += rebalance_every
+                    continue
             if float(e["Close"].iloc[i]) <= float(e["EMA50"].iloc[i]):
                 i += rebalance_every
                 continue

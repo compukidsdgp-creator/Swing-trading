@@ -51,6 +51,10 @@ except ImportError:
     fake.cache_resource = _passthrough
     sys.modules["streamlit"] = fake
 
+# NOTE: automate.py predates pipeline.py and still uses the v1 composite, which
+# FAILED factor neutralisation (residual IC +0.004, t = 0.17). Use pipeline.py
+# instead — it supports --model momentum. This file is retained only for the
+# --monthly report path.
 import config          # noqa: E402
 import regime as rg    # noqa: E402
 import monthly as mon  # noqa: E402

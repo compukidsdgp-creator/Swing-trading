@@ -228,7 +228,20 @@ def sidebar() -> dict:
         help="Momentum present but not exhausted.",
     )
     require_uptrend = st.sidebar.checkbox("Require price > 50 EMA", value=True)
-    min_score = st.sidebar.slider("Min composite score", 0, 100, 55)
+    if model.startswith("Momentum"):
+        min_score = st.sidebar.slider(
+            "Min percentile rank", 0, 100, 50,
+            help="Percentile within today's universe. Note this is RELATIVE — the "
+                 "absolute floor below is what actually gates quality.",
+        )
+        require_positive_mom = st.sidebar.checkbox(
+            "Require positive 12-1 momentum", value=True,
+            help="Without this, a percentile rank promotes the best of a falling "
+                 "market and stamps it 100. Strongly recommended.",
+        )
+    else:
+        min_score = st.sidebar.slider("Min composite score", 0, 100, 55)
+        require_positive_mom = False
 
     st.sidebar.divider()
     _report_links_sidebar()
@@ -250,6 +263,7 @@ def sidebar() -> dict:
         atr_mult=atr_mult,
         universe_name=label,
         universe_result=result,
+        require_positive_mom=require_positive_mom,
     )
 
 
@@ -387,6 +401,7 @@ def render_screener(cfg: dict) -> pd.DataFrame:
             data, bench_df,
             min_turnover_cr=0.0,        # sidebar filter applies below
             require_above_50ema=False,  # ditto
+            min_momentum=0.0 if cfg.get("require_positive_mom", True) else None,
         )
         if res.empty:
             st.warning("No tickers produced valid momentum values.")
@@ -841,9 +856,13 @@ def render_backtest(cfg: dict) -> None:
     rebal = c[2].slider("Check every N bars", 1, 10, 5)
     n_stocks = c[3].slider("Stocks to test", 10, 100, 30, 10)
 
-    c2 = st.columns(2)
+    c2 = st.columns(3)
     use_regime = c2[0].checkbox("Apply regime filter", value=True)
     apply_costs = c2[1].checkbox("Subtract transaction costs", value=True)
+    bt_model = c2[2].selectbox("Model", ["momentum", "composite_v1"], index=0,
+                               key="bt_model",
+                               help="composite_v1 failed factor neutralisation and is "
+                                    "retained for comparison only.")
 
     if not st.button("Run backtest", type="primary"):
         st.info("Configure above, then run. Expect 30–90 seconds for 30 stocks over 2 years.")
@@ -861,7 +880,7 @@ def render_backtest(cfg: dict) -> None:
     with st.spinner("Walking forward…"):
         trades = bt.run(frames, bench, min_score=min_score, hold_bars=hold,
                         rebalance_every=rebal, use_regime_filter=use_regime,
-                        apply_costs=apply_costs)
+                        apply_costs=apply_costs, model=bt_model)
 
     if trades.empty:
         st.warning(
@@ -1492,6 +1511,11 @@ def render_validation(cfg: dict) -> None:
     n_stocks = c[2].slider("Stocks", 15, 100, 40, 5)
     n_perm = c[3].select_slider("Permutations", [100, 200, 400, 800], value=400)
 
+    val_model = st.selectbox(
+        "Model to validate", ["momentum", "composite_v1"], index=0, key="val_model",
+        help="Validate what you actually trade. composite_v1 failed neutralisation "
+             "(residual IC +0.004, t = 0.17).",
+    )
     overlap = st.checkbox(
         "Use overlapping windows", value=False,
         help="Overlapping windows give more data points but correlated ones, which inflates "
@@ -1529,7 +1553,7 @@ def render_validation(cfg: dict) -> None:
     with st.spinner("Walking forward and permuting…"):
         res = val.run_ic(frames, bench, horizon=horizon,
                          step=max(1, horizon // 3) if overlap else horizon,
-                         n_permutations=n_perm)
+                         n_permutations=n_perm, model=val_model)
 
     if "error" in res.summary:
         st.error(f"Could not run: {res.summary['error']}")

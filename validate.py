@@ -43,7 +43,7 @@ import pandas as pd
 import indicators as ind
 import regime as rg
 import tiers as tr
-from backtest import _score_at, MIN_HISTORY
+from backtest import get_scorer, MIN_HISTORY
 
 
 @dataclass
@@ -75,6 +75,7 @@ def run_ic(
     min_names: int = 15,
     n_permutations: int = 200,
     seed: int = 0,
+    model: str = "momentum",
 ) -> ICResult:
     """Walk forward, computing an IC at each rebalance date.
 
@@ -87,6 +88,7 @@ def run_ic(
         n_permutations: size of the null distribution.
     """
     step = step or horizon
+    scorer = get_scorer(model)
     bench_e = ind.enrich(bench) if bench is not None and len(bench) > 200 else None
 
     # Pre-enrich once; indicators are causal so this introduces no lookahead.
@@ -147,7 +149,7 @@ def run_ic(
                 continue
 
             try:
-                sc = _score_at(e, i, bench_e, tier_of[t])
+                sc = scorer(e, i, bench_e, tier_of[t])
             except Exception:
                 continue
             if not np.isfinite(sc):

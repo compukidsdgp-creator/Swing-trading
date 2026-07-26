@@ -1,1 +1,43 @@
-.github/workflows/pipeline.yml
+name: SwingScope pipeline
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 3 * * 1'
+
+permissions:
+  contents: write
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run pipeline
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python pipeline.py --universe "Nifty 500" --size 10 --no-pdf --notify
+
+      - name: Commit results
+        run: |
+          git config user.name "swingscope-bot"
+          git config user.email "actions@github.com"
+          git add forward_log.csv reports/ || true
+          git diff --staged --quiet || git commit -m "Run $(date +%F)"
+          git push || true
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: report-${{ github.run_number }}
+          path: reports/
+          if-no-files-found: warn

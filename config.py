@@ -10,12 +10,12 @@ BENCHMARK = "^NSEI"  # Nifty 50
 # section to .streamlit/secrets.toml (or Streamlit Cloud -> Settings -> Secrets):
 #
 #   [reports]
-#   github_user = "compukidsdgp-creator"
-#   github_repo = "Swing-trading"
+#   github_user = "yourname"
+#   github_repo = "swingscope"
 #   pages_enabled = true
 #
-GITHUB_USER = "compukidsdgp-creator"          # e.g. "yourname"
-GITHUB_REPO = "Swing-trading"
+GITHUB_USER = ""          # e.g. "yourname"
+GITHUB_REPO = "swingscope"
 PAGES_ENABLED = False     # True once GitHub Pages is switched on for the repo
 
 

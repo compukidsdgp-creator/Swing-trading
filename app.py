@@ -30,6 +30,7 @@ import validate as val
 import forward_log as flog
 import sentiment as sent
 import report as rep
+import bucket as bk
 
 st.set_page_config(
     page_title="SwingScope — NSE Swing Research",
@@ -255,6 +256,58 @@ def _report_links_sidebar() -> None:
             )
 
 
+@st.dialog("Today's bucket", width="large")
+def _bucket_dialog(b, reg) -> None:
+    """Popup showing the assembled shortlist."""
+    tone = {"risk_on": st.success, "neutral": st.warning, "risk_off": st.error}
+    tone.get(b.regime_state, st.info)(
+        f"**{b.regime_state.replace('_', ' ').upper()}** — {reg.description}"
+    )
+
+    if b.is_empty:
+        st.warning("No picks qualified.")
+        for n in b.notes:
+            st.caption(f"· {n}")
+        st.info("Taking no positions is a valid outcome, and in a hostile regime "
+                "it is usually the correct one.")
+        return
+
+    m = st.columns(3)
+    m[0].metric("Picks", b.actual_size)
+    m[1].metric("Target", b.target_size)
+    m[2].metric("Mix", " / ".join(f"{k[0].upper()}{v}"
+                                  for k, v in sorted(b.tier_counts.items())))
+
+    cols = [c for c in ["Rank", "Ticker", "Tier", "Sector", "Score", "Close",
+                        "RSI", "ATR_pct"] if c in b.picks.columns]
+    st.dataframe(
+        b.picks[cols], hide_index=True, use_container_width=True,
+        column_config={
+            "Score": st.column_config.ProgressColumn("Score", min_value=0,
+                                                     max_value=100, format="%d"),
+            "Close": st.column_config.NumberColumn("₹", format="%.1f"),
+            "ATR_pct": st.column_config.NumberColumn("ATR %", format="%.1f"),
+        },
+    )
+
+    if b.notes:
+        with st.expander("How this bucket was built"):
+            for n in b.notes:
+                st.markdown(f"- {n}")
+
+    st.download_button("⬇ Bucket (CSV)", b.picks.to_csv(index=False).encode(),
+                       file_name=f"bucket_{dt.date.today()}.csv", mime="text/csv",
+                       use_container_width=True)
+    with st.expander("Plain text (for WhatsApp / Telegram)"):
+        st.code(bk.to_text(b, regime_desc=reg.description), language=None)
+
+    st.caption(
+        "Analytical view, not advice. Scores measure how closely a chart matches a "
+        "trend-continuation pattern — not how lucrative a stock is. Check each chart "
+        "and the News tab for earnings inside your holding window before acting."
+    )
+
+
 # --------------------------------------------------------------------------
 # Screener tab
 # --------------------------------------------------------------------------
@@ -372,12 +425,27 @@ def render_screener(cfg: dict) -> pd.DataFrame:
         },
     )
 
-    st.download_button(
+    dl, bcol = st.columns([1, 1])
+    dl.download_button(
         "Download results (CSV)",
         filtered.drop(columns=["_raw"]).to_csv(index=False).encode(),
         file_name=f"swingscope_{dt.date.today()}.csv",
-        mime="text/csv",
+        mime="text/csv", use_container_width=True,
     )
+
+    with bcol.popover("⚙️ Bucket settings", use_container_width=True):
+        b_size = st.slider("Bucket size", 3, 20, 10)
+        b_sector = st.slider("Max per sector", 1, 5, 2)
+        b_balance = st.checkbox("Balance across tiers", value=True,
+                                help="Spread across large/mid/small within what the "
+                                     "regime permits, rather than taking the top N.")
+
+    if st.button("🎯 Build today's bucket", type="primary", use_container_width=True):
+        b = bk.build(filtered, reg, size=b_size, max_per_sector=b_sector,
+                     min_score=cfg["min_score"], balance_tiers=b_balance)
+        st.session_state["bucket"] = b
+        _bucket_dialog(b, reg)
+
     return filtered
 
 

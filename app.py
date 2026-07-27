@@ -35,6 +35,8 @@ import data_quality as dq
 import forward_log as flog
 import sentiment as sent
 import report as rep
+import bhavcopy as bhav
+import broker as brk
 import bucket as bk
 
 st.set_page_config(
@@ -1508,6 +1510,263 @@ def render_forward_log(cfg: dict, shortlist: pd.DataFrame) -> None:
 
 
 # --------------------------------------------------------------------------
+# Bhavcopy — free point-in-time data
+# --------------------------------------------------------------------------
+def render_bhavcopy() -> None:
+    st.subheader("NSE bhavcopy — free point-in-time data")
+    st.caption(
+        "I previously called survivorship bias, history depth and delivery data "
+        "'money problems'. That was wrong. NSE publishes a complete daily snapshot of "
+        "every traded security, archived back to 1994 — including companies later "
+        "delisted. Building the universe from bhavcopies is genuinely point-in-time."
+    )
+
+    st.success(
+        "**Three gaps this closes at zero cost.**\n\n"
+        "**Survivorship** — every security that traded that day, not just today's "
+        "index members.\n\n"
+        "**History** — archives to 1994, versus five years from yfinance.\n\n"
+        "**Delivery percentage** — the share of volume that resulted in actual "
+        "delivery rather than intraday squaring. Not available in yfinance at all, "
+        "and a genuine signal input.",
+        icon="🔓",
+    )
+
+    stats = bhav.cache_stats()
+    m = st.columns(4)
+    m[0].metric("Days cached", stats["days"])
+    m[1].metric("Cache size", f"{stats['size_mb']} MB")
+    m[2].metric("Earliest", stats["earliest"] or "—")
+    m[3].metric("Latest", stats["latest"] or "—")
+
+    st.markdown("##### Download history")
+    c = st.columns(3)
+    start = c[0].date_input("From", dt.date.today() - dt.timedelta(days=90), key="bh_s")
+    end = c[1].date_input("To", dt.date.today(), key="bh_e")
+    max_days = c[2].slider("Max sessions", 20, 400, 60, 20, key="bh_n")
+
+    st.caption(
+        "Downloads prefer a community GitHub mirror rather than hammering NSE, which "
+        "blacklists aggressive crawlers. Each date is fetched once and cached locally. "
+        "Please keep batches modest — the mirror is someone's unpaid work."
+    )
+
+    if st.button("Download bhavcopies", key="bh_run"):
+        bar = st.progress(0.0)
+        status = st.empty()
+
+        def _prog(i, total, date, source):
+            bar.progress(i / total)
+            status.caption(f"{i}/{total} · {date:%d %b %Y} · {source}")
+
+        with st.spinner("Fetching…"):
+            hist = bhav.fetch_range(str(start), str(end),
+                                    max_days=max_days, progress=_prog)
+        bar.empty(); status.empty()
+
+        if hist.empty:
+            st.error(
+                "No data retrieved. The mirror may not carry these dates, or NSE may "
+                "be blocking. Try a different range, or fewer days."
+            )
+            return
+
+        st.session_state["bhav_hist"] = hist
+        st.success(f"Retrieved {hist['date'].nunique()} sessions, "
+                   f"{len(hist):,} rows, {hist['symbol'].nunique():,} unique symbols.")
+
+    hist = st.session_state.get("bhav_hist")
+    if hist is None or hist.empty:
+        st.info("Download some history to see the analysis below.")
+        return
+
+    latest_date = hist["date"].max()
+    latest = hist[hist["date"] == latest_date]
+
+    st.markdown(f"##### Point-in-time universe — {latest_date:%d %b %Y}")
+    c2 = st.columns(3)
+    min_to = c2[0].number_input("Min turnover (₹ Cr)", 0.0, 500.0, 10.0, 5.0, key="bh_to")
+    eq_only = c2[1].checkbox("EQ series only", value=True, key="bh_eq",
+                             help="Excludes BE series, which carries ASM/GSM "
+                                  "surveillance restrictions and is often untradeable.")
+    min_tr = c2[2].number_input("Min trades", 0, 20000, 500, 100, key="bh_tr")
+
+    u = bhav.pit_universe(latest, min_turnover_cr=min_to,
+                          eq_only=eq_only, min_trades=min_tr)
+    st.metric("Investable that day", f"{len(u):,} of {len(latest):,} traded")
+    if not u.empty:
+        cols = [c for c in ("symbol", "series", "close", "turnover_cr", "trades",
+                            "deliv_pct") if c in u.columns]
+        st.dataframe(u[cols].head(50), hide_index=True, use_container_width=True)
+
+    # Churn — the evidence that survivorship is actually being addressed
+    dates = sorted(hist["date"].unique())
+    if len(dates) > 5:
+        step = max(1, len(dates) // 10)
+        frames = {d: hist[hist["date"] == d] for d in dates[::step]}
+        churn = bhav.universe_churn(frames, min_turnover_cr=min_to,
+                                    eq_only=eq_only, min_trades=min_tr)
+        if not churn.empty:
+            st.markdown("##### Universe churn over time")
+            st.caption(
+                "Entries and exits are the proof that membership is being decided "
+                "at each date rather than inherited from today's index. A static "
+                "list would show none."
+            )
+            st.dataframe(churn, hide_index=True, use_container_width=True)
+            st.line_chart(churn.set_index("date")["n"])
+
+    # Delivery signal
+    if "deliv_pct" in hist.columns and hist["deliv_pct"].notna().any():
+        st.markdown("##### Delivery-based accumulation")
+        st.caption(
+            "Delivery percentage on up-days minus down-days. Institutions "
+            "accumulating take delivery; day-traders square off. Positive values "
+            "suggest genuine accumulation. **This data does not exist in yfinance.**"
+        )
+        sig = bhav.delivery_signal(hist)
+        if not sig.empty:
+            top = sig.head(25)
+            st.dataframe(top, hide_index=True, use_container_width=True)
+            st.download_button("Download delivery signal (CSV)",
+                               sig.to_csv(index=False).encode(),
+                               file_name="delivery_signal.csv", mime="text/csv")
+            st.info(
+                "**Before using this as a signal, test it.** Add it to the Signal "
+                "laboratory and check its residual IC after factor neutralisation. "
+                "Novel data is not the same as predictive data — that is exactly the "
+                "mistake the v1 composite made.", icon="🧪",
+            )
+    else:
+        st.caption(
+            "No delivery data in this range. DELIV_PER appears in the full "
+            "`sec_bhavdata_full` files and in post-2024 formats; older archives "
+            "may lack it."
+        )
+
+
+# --------------------------------------------------------------------------
+# Broker tab — measured costs vs assumed costs
+# --------------------------------------------------------------------------
+def render_broker() -> None:
+    st.subheader("Broker: measured transaction costs")
+    st.caption(
+        "The strategy rests on a number that was **estimated, not measured** — round-trip "
+        "cost per tier. Against an edge of roughly 0.5pp per 15-day cycle, being wrong "
+        "about it is the difference between profit and a slow bleed. This reads your "
+        "actual fills and charges from Paytm Money and compares them."
+    )
+
+    st.error(
+        "**Read-only by design.** This module cannot place, modify or cancel orders. "
+        "That is deliberate: you have no forward evidence yet, and the judgement step "
+        "between a ranked list and an actual purchase is currently doing real work.",
+        icon="🔒",
+    )
+
+    if brk.is_cloud_deployment():
+        st.warning(
+            "**Running on Streamlit Cloud.** Broker credentials in a shared hosted "
+            "environment are a poor idea even for read-only access. Run this locally "
+            "(`streamlit run app.py`) with credentials in `.streamlit/secrets.toml`.",
+            icon="⚠️",
+        )
+
+    with st.expander("Setup"):
+        st.markdown(
+            "1. Sign in at [developer.paytmmoney.com](https://developer.paytmmoney.com) "
+            "with your Paytm Money account (KYC-ready equity account required).\n"
+            "2. Create an app; note the API key and secret.\n"
+            "3. `pip install pmclient`\n"
+            "4. Add to `.streamlit/secrets.toml` — already excluded by `.gitignore`:\n"
+            "```toml\n[paytm]\napi_key    = \"your_key\"\n"
+            "api_secret = \"your_secret\"\n```\n"
+            "Never commit these. If they leak, regenerate immediately."
+        )
+
+    if not st.button("Connect (read-only)", type="primary"):
+        st.info("Nothing is fetched until you connect.")
+        return
+
+    client, status = brk.connect()
+    if not status.connected:
+        st.error(status.message)
+        return
+    st.success(status.message)
+
+    with st.spinner("Fetching holdings, orders and trades…"):
+        holdings = brk.fetch_holdings(client)
+        orders = brk.fetch_orders(client)
+        trades = brk.fetch_trades(client)
+
+    m = st.columns(3)
+    m[0].metric("Holdings", len(holdings))
+    m[1].metric("Orders", len(orders))
+    m[2].metric("Trades", len(trades))
+
+    st.markdown("##### Cost analysis")
+    report = brk.cost_report(trades, orders)
+    level, message = brk.verdict(report)
+    {"good": st.success, "warn": st.warning,
+     "bad": st.error, "none": st.info}[level](message)
+
+    if report.get("measured_round_trip_pct") is not None:
+        c = st.columns(4)
+        c[0].metric("Charges (round trip)", f"{report['measured_round_trip_pct']:.3f}%")
+        if report.get("mean_slippage_pct") is not None:
+            c[1].metric("Mean slippage", f"{report['mean_slippage_pct']:+.3f}%",
+                        help="Positive is adverse — you paid more than intended.")
+        if report.get("all_in_round_trip_pct") is not None:
+            c[2].metric("All-in cost", f"{report['all_in_round_trip_pct']:.3f}%")
+        c[3].metric("Assumed (large)", f"{report['assumed']['large']:.2f}%")
+
+        allin = report.get("all_in_round_trip_pct")
+        if allin:
+            comp = pd.DataFrame({
+                "tier": ["large", "mid", "small"],
+                "assumed_pct": [report["assumed"][t] for t in ("large", "mid", "small")],
+                "measured_pct": [allin] * 3,
+            })
+            comp["gap_pct"] = (comp["measured_pct"] - comp["assumed_pct"]).round(3)
+            st.markdown("**Assumed vs measured**")
+            st.dataframe(comp, hide_index=True, use_container_width=True)
+            st.caption(
+                "If measured materially exceeds assumed, update `est_cost_pct` in "
+                "`tiers.py` — the cost model feeds position sizing and the "
+                "small-cap exclusion."
+            )
+
+    if not orders.empty:
+        slip = brk.measure_slippage(orders)
+        if not slip.empty:
+            with st.expander(f"Per-order slippage ({len(slip)} orders)"):
+                st.dataframe(slip, hide_index=True, use_container_width=True)
+
+    if not holdings.empty:
+        st.markdown("##### Holdings")
+        cols = [c for c in ("Ticker", "Qty", "Avg_cost", "LTP", "Value", "PnL",
+                            "PnL_pct") if c in holdings.columns]
+        st.dataframe(holdings[cols] if cols else holdings,
+                     hide_index=True, use_container_width=True)
+
+        log = st.session_state.get("fwd_log")
+        if log is not None and not log.empty:
+            rec = brk.reconcile_with_forward_log(holdings, log)
+            if not rec.empty:
+                st.markdown("##### Which picks did you act on?")
+                st.caption(
+                    "The forward log records what the model suggested. This shows what "
+                    "you did with it — a persistently low action rate is its own form "
+                    "of strategy drift, and worth noticing."
+                )
+                st.dataframe(rec, hide_index=True, use_container_width=True)
+
+    with st.expander("Raw data"):
+        st.write("**Orders**"); st.dataframe(orders.head(20))
+        st.write("**Trades**"); st.dataframe(trades.head(20))
+
+
+# --------------------------------------------------------------------------
 # Validation tab — does the score rank forward returns?
 # --------------------------------------------------------------------------
 def render_validation(cfg: dict) -> None:
@@ -1650,7 +1909,7 @@ def main() -> None:
         icon="⚠️",
     )
 
-    tabs = st.tabs(["🔍 Screener", "📊 Detail", "🧪 Backtest", "🔬 Validation", "📋 Forward log", "📰 News", "📓 Journal", "❓ Method"])
+    tabs = st.tabs(["🔍 Screener", "📊 Detail", "🧪 Backtest", "🔬 Validation", "📋 Forward log", "💼 Broker", "📰 News", "📓 Journal", "❓ Method"])
 
     with tabs[0]:
         shortlist = render_screener(cfg)
@@ -1668,13 +1927,17 @@ def main() -> None:
         render_composite_builder(cfg)
         st.divider()
         render_data_quality(cfg)
+        st.divider()
+        render_bhavcopy()
     with tabs[4]:
         render_forward_log(cfg, shortlist)
     with tabs[5]:
-        render_news(cfg, shortlist)
+        render_broker()
     with tabs[6]:
-        render_journal()
+        render_news(cfg, shortlist)
     with tabs[7]:
+        render_journal()
+    with tabs[8]:
         st.markdown(config.METHOD_DOC)
 
 

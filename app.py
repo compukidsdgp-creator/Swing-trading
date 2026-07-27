@@ -38,6 +38,7 @@ import report as rep
 import bhavcopy as bhav
 import broker as brk
 import bucket as bk
+import costs
 
 st.set_page_config(
     page_title="SwingScope — NSE Swing Research",
@@ -1676,6 +1677,126 @@ def render_bhavcopy() -> None:
 
 
 # --------------------------------------------------------------------------
+# True cost: tax + correlation
+# --------------------------------------------------------------------------
+def render_true_cost(cfg: dict) -> None:
+    st.subheader("True cost: tax and correlation")
+    st.caption(
+        "Two costs the model never charged. **Tax:** India levies 20% on "
+        "short-term capital gains — every 15–20 day hold is short-term by "
+        "definition. **Correlation:** ten momentum names in a rising market "
+        "often behave as two or three independent bets, so per-position sizing "
+        "understates real risk."
+    )
+
+    st.markdown("##### Does the edge survive?")
+    c = st.columns(4)
+    gross = c[0].number_input("Gross edge %/cycle", 0.0, 5.0, 0.55, 0.05, key="tc_g",
+                              help="Top-minus-bottom quintile spread per holding period.")
+    charges = c[1].number_input("Charges %", 0.0, 3.0, 0.35, 0.05, key="tc_c")
+    win = c[2].slider("Win rate", 0.30, 0.80, 0.55, 0.05, key="tc_w")
+    hold = c[3].number_input("Holding days", 1, 400, 15, 1, key="tc_h")
+
+    r = costs.edge_after_tax(gross, win_rate=win, charges_pct=charges,
+                             holding_days=hold)
+    m = st.columns(5)
+    m[0].metric("Gross", f"{r['gross_edge_pct']:.3f}%")
+    m[1].metric("Charges", f"−{r['charges_pct']:.3f}%")
+    m[2].metric("Tax", f"−{r['tax_pct']:.3f}%", help=f"{r['tax_rate_applied']:.1%} rate")
+    m[3].metric("Net", f"{r['net_edge_pct']:+.3f}%")
+    m[4].metric("Annualised", f"{r['annualised_net_pct']:+.2f}%")
+
+    if not r["viable"]:
+        st.error(
+            f"**The edge does not survive.** {gross:.2f}% gross becomes "
+            f"{r['net_edge_pct']:+.3f}% after {charges:.2f}% charges and "
+            f"{r['tax_pct']:.3f}% tax. At this holding period the strategy loses "
+            "money regardless of what the IC says. The fix is a bigger gross edge "
+            "or a longer hold — not better ranking."
+        )
+    else:
+        st.success(
+            f"Net {r['net_edge_pct']:+.3f}% per cycle, annualising to "
+            f"{r['annualised_net_pct']:+.2f}%. {r['retention_pct']:.0f}% of gross survives."
+        )
+
+    st.markdown("##### Holding period")
+    st.caption(
+        "Gross edge scaled by √time — a longer hold captures a larger move. Two "
+        "effects favour patience: charges are paid fewer times a year, and past "
+        "12 months the rate drops from 20% to 12.5%."
+    )
+    hz = costs.compare_horizons(gross, base_days=hold, charges_pct=charges)
+    st.dataframe(hz, hide_index=True, use_container_width=True)
+    st.bar_chart(hz.set_index("holding_days")["annualised_net_pct"])
+
+    st.markdown("##### Correlation: how many bets are you really making?")
+    if not st.button("Analyse current bucket", key="tc_run"):
+        st.info("Run the Screener first, then analyse the resulting basket.")
+        return
+
+    b = st.session_state.get("bucket")
+    if b is None or b.is_empty:
+        st.warning("No bucket found. Build one on the Screener tab first.")
+        return
+
+    tickers = tuple(f"{t}.NS" for t in b.picks["Ticker"])
+    with st.spinner("Fetching returns…"):
+        frames = fetch_history(tickers, period="1y")
+    if not frames:
+        st.error("Could not fetch price data.")
+        return
+
+    rets = costs.build_returns_matrix(frames, lookback=60)
+    if rets.empty or rets.shape[1] < 2:
+        st.warning("Not enough overlapping data to measure correlation.")
+        return
+
+    div = costs.effective_positions(rets)
+    k = st.columns(4)
+    k[0].metric("Positions", div.n_positions)
+    k[1].metric("Mean correlation", f"{div.mean_correlation:.2f}")
+    k[2].metric("Effective bets", f"{div.effective_n:.1f}")
+    k[3].metric("Risk multiplier", f"{div.risk_multiplier:.2f}x")
+
+    if div.is_concentrated:
+        st.warning(
+            f"**{div.n_positions} positions behave like {div.effective_n:.1f} "
+            f"independent bets.** Portfolio risk is {div.risk_multiplier:.2f}x what "
+            "per-position sizing assumes — a bad week hits harder than the "
+            "arithmetic suggests."
+        )
+        adj = costs.adjusted_position_size(100, 1000, div)
+        st.info(f"**Scale option:** {adj['note']}", icon="📉")
+        alt = costs.adjusted_position_size(100, 1000, div, mode="reduce")
+        st.info(f"**Concentrate option:** {alt['note']}", icon="🎯")
+    else:
+        st.success(f"Diversification adequate — {div.effective_n:.1f} effective "
+                   f"positions from {div.n_positions}.")
+
+    clusters = costs.cluster_positions(rets, threshold=0.7)
+    multi = {i: v for i, v in clusters.items() if len(v) > 1}
+    if multi:
+        st.markdown("**Names that move together (correlation ≥ 0.70)**")
+        st.caption("Each cluster is effectively one position, whatever its sector labels say.")
+        for i, members in multi.items():
+            st.markdown(f"- **Cluster {i+1}:** {', '.join(members)}")
+
+    with st.expander("Correlation matrix"):
+        st.dataframe(div.correlation_matrix, use_container_width=True)
+
+    lvl, msg = costs.verdict(div, r)
+    {"good": st.success, "warn": st.warning, "bad": st.error}[lvl](msg)
+
+    st.caption(
+        "Tax rules vary by individual circumstance — loss set-off, carry-forward, "
+        "exemption limits and investor-versus-trader classification all matter. "
+        "These are headline rates used as a modelling input, not tax advice. "
+        "Confirm with a chartered accountant."
+    )
+
+
+# --------------------------------------------------------------------------
 # Broker tab — measured costs vs assumed costs
 # --------------------------------------------------------------------------
 def render_broker() -> None:
@@ -1959,6 +2080,8 @@ def main() -> None:
         render_data_quality(cfg)
         st.divider()
         render_bhavcopy()
+        st.divider()
+        render_true_cost(cfg)
     with tabs[4]:
         render_forward_log(cfg, shortlist)
     with tabs[5]:

@@ -37,6 +37,8 @@ COLUMNS = [
     "price_at_pick", "horizon_days", "target_eval_date",
     "price_at_eval", "fwd_return_pct", "bench_return_pct",
     "excess_return_pct", "status", "notes",
+    # Added to make evaluation-timing drift visible rather than silent.
+    "holding_days_actual", "eval_method",
 ]
 
 
@@ -94,18 +96,46 @@ def evaluate_open(
     log: pd.DataFrame,
     price_lookup: dict[str, float],
     bench_lookup: dict[str, float] | None = None,
+    price_history: dict[str, pd.DataFrame] | None = None,
 ) -> tuple[pd.DataFrame, int]:
-    """Fill in outcomes for any entries whose evaluation date has passed.
+    """Fill in outcomes for entries whose evaluation date has passed.
+
+    Timing correctness
+    ------------------
+    An earlier version always used the LATEST price. If the pipeline ran a week
+    after a pick matured, a 15-day horizon was recorded using a 22-day return.
+    Over months that drift compounds, and the forward log ends up measuring a
+    different holding period than the one validated.
+
+    This version prefers the close ON the target date, taken from
+    `price_history`. It falls back to the latest price when history is
+    unavailable, and records which method was used plus the actual holding
+    period — so any remaining drift is visible in the data rather than silent.
 
     Args:
-        price_lookup: {ticker (no .NS): current price}
+        price_lookup: {ticker (no .NS): latest price} — the fallback.
         bench_lookup: {'now': price, 'then_<date>': price} for excess return.
-                      Optional — excess return is skipped if absent.
+        price_history: {ticker: OHLCV frame} — enables exact-date evaluation.
+                       Strongly preferred.
     """
     if log.empty:
         return log, 0
 
     out = log.copy()
+
+    # Dtype care: from_csv backfills absent columns with NaN, giving them
+    # float64. Assigning a string into a float64 column raises in pandas 2+.
+    # Force the text column to object and the numeric one to float up front.
+    if "holding_days_actual" not in out.columns:
+        out["holding_days_actual"] = np.nan
+    out["holding_days_actual"] = pd.to_numeric(
+        out["holding_days_actual"], errors="coerce").astype("float64")
+
+    if "eval_method" not in out.columns:
+        out["eval_method"] = pd.Series([None] * len(out), dtype=object, index=out.index)
+    else:
+        out["eval_method"] = out["eval_method"].astype(object)
+
     today = dt.date.today()
     filled = 0
 
@@ -114,23 +144,58 @@ def evaluate_open(
             continue
         try:
             target = dt.date.fromisoformat(str(row["target_eval_date"]))
+            picked = dt.date.fromisoformat(str(row["snapshot_date"]))
         except (ValueError, TypeError):
             continue
         if today < target:
             continue
 
-        px_now = price_lookup.get(str(row["ticker"]))
-        if px_now is None or not np.isfinite(px_now) or px_now <= 0:
-            continue
-
+        ticker = str(row["ticker"])
         p0 = float(row["price_at_pick"])
         if p0 <= 0:
             continue
 
-        ret = (px_now / p0 - 1) * 100
-        out.at[i, "price_at_eval"] = round(float(px_now), 2)
+        px, method, eval_date = None, None, None
+
+        # Preferred: the close on (or immediately after) the target date
+        if price_history:
+            # NOTE: never use `a or b` with DataFrames — pandas raises on
+            # ambiguous truthiness. Check membership explicitly.
+            hist = price_history.get(ticker)
+            if hist is None:
+                hist = price_history.get(f"{ticker}.NS")
+            if hist is not None and not hist.empty and "Close" in hist.columns:
+                try:
+                    idx = pd.DatetimeIndex(hist.index).normalize()
+                    tgt = pd.Timestamp(target)
+                    on_or_after = idx[idx >= tgt]
+                    if len(on_or_after):
+                        d = on_or_after[0]
+                        # Guard against a stale frame that stops before target
+                        if (d - tgt).days <= 7:
+                            px = float(hist.loc[idx == d, "Close"].iloc[0])
+                            method = "at_target"
+                            eval_date = d.date()
+                except Exception:                              # noqa: BLE001
+                    px = None
+
+        # Fallback: latest price, clearly labelled
+        if px is None:
+            cand = price_lookup.get(ticker)
+            if cand is not None and np.isfinite(cand) and cand > 0:
+                px = float(cand)
+                method = "latest_price"
+                eval_date = today
+
+        if px is None:
+            continue
+
+        ret = (px / p0 - 1) * 100
+        out.at[i, "price_at_eval"] = round(px, 2)
         out.at[i, "fwd_return_pct"] = round(ret, 2)
         out.at[i, "status"] = "evaluated"
+        out.at[i, "eval_method"] = method
+        out.at[i, "holding_days_actual"] = (eval_date - picked).days if eval_date else np.nan
 
         if bench_lookup:
             b_now = bench_lookup.get("now")
@@ -189,6 +254,14 @@ def analyse(log: pd.DataFrame) -> dict:
         "mean_excess_pct": round(float(exc.mean()), 2) if len(exc) else None,
         "beat_bench_pct": round(float((exc > 0).mean()) * 100, 1) if len(exc) else None,
         "forward_ic": round(mean_ic, 4) if np.isfinite(mean_ic) else None,
+        "mean_holding_days": (round(float(pd.to_numeric(
+            ev["holding_days_actual"], errors="coerce").dropna().mean()), 1)
+            if "holding_days_actual" in ev.columns
+            and pd.to_numeric(ev["holding_days_actual"], errors="coerce").notna().any()
+            else None),
+        "pct_evaluated_at_target": (round(float(
+            (ev["eval_method"] == "at_target").mean()) * 100, 1)
+            if "eval_method" in ev.columns else None),
         "forward_ic_t": round(float(t_stat), 2) if np.isfinite(t_stat) else None,
         "ic_windows": len(ics),
         "open_picks": int((log["status"] == "open").sum()),
@@ -259,5 +332,7 @@ def from_csv(data) -> pd.DataFrame:
         return empty_log()
     for c in COLUMNS:
         if c not in df.columns:
-            df[c] = np.nan
+            # Text columns must be object dtype, or later string assignment fails
+            df[c] = (pd.Series([None] * len(df), dtype=object, index=df.index)
+                     if c in ("eval_method", "status", "notes") else np.nan)
     return df[COLUMNS]

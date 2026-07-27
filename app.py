@@ -1419,7 +1419,10 @@ def render_forward_log(cfg: dict, shortlist: pd.DataFrame) -> None:
                 frames = fetch_history(tickers, period="6mo")
             lookup = {t.replace(".NS", ""): float(df["Close"].iloc[-1])
                       for t, df in frames.items() if df is not None and len(df)}
-            st.session_state.fwd_log, filled = flog.evaluate_open(log, lookup)
+            hist = {t.replace(".NS", ""): df for t, df in frames.items()
+                    if df is not None and len(df)}
+            st.session_state.fwd_log, filled = flog.evaluate_open(
+                log, lookup, price_history=hist)
             log = st.session_state.fwd_log
             st.success(f"Evaluated {filled} picks.") if filled else st.info(
                 "None have reached their evaluation date yet."

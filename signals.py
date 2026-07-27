@@ -227,7 +227,8 @@ def run(
     min_names: int = 25,
 ) -> SignalResult:
     """Test every candidate signal for raw and residual predictive content."""
-    step = step or horizon
+    # +3 avoids every window landing on the same weekday (see validate.py)
+    step = step or (horizon + 3)
     bench_e = ind.enrich(bench) if bench is not None and len(bench) > 300 else None
 
     enriched = {}

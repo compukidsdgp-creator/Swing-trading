@@ -269,7 +269,12 @@ def run(args) -> tuple[int, list[str], dict]:
         pdata = _fetch(tuple(f"{t}.NS" for t in open_t), period="6mo")
         lookup = {t.replace(".NS", ""): float(d["Close"].iloc[-1])
                   for t, d in pdata.items() if d is not None and len(d)}
-        log, filled = flog.evaluate_open(log, lookup)
+        # Pass full history so each pick is valued ON its target date rather
+        # than at today's close — otherwise a late run records a longer
+        # holding period than the horizon that was validated.
+        hist = {t.replace(".NS", ""): d for t, d in pdata.items()
+                if d is not None and len(d)}
+        log, filled = flog.evaluate_open(log, lookup, price_history=hist)
         LOG_PATH.write_bytes(flog.to_csv(log))
         say(f"  evaluated {filled} (of {len(open_t)} open)")
     else:

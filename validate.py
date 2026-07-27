@@ -81,13 +81,21 @@ def run_ic(
 
     Args:
         horizon: forward return window in trading days (your 15-20 day swing).
-        step: days between rebalance dates. Defaults to `horizon`, which gives
-              NON-OVERLAPPING windows — important, because overlapping windows
-              inflate the t-statistic by making observations correlated.
+        step: days between rebalance dates. Defaults to `horizon + 3`, NOT
+              `horizon`.
+
+              Why the +3: a step of exactly `horizon` business days lands on
+              the same weekday every single time. With horizon=15, every
+              rebalance was a Friday — 100% of windows. Any day-of-week effect
+              would be fully baked into the result. Adding 3 rotates the
+              weekday evenly across all five, and incidentally adds a small
+              embargo gap between windows, which further reduces correlation
+              between observations.
         min_names: skip a window if fewer than this many stocks are scoreable.
         n_permutations: size of the null distribution.
     """
-    step = step or horizon
+    # +3 breaks the weekday lock. See the docstring above.
+    step = step or (horizon + 3)
     scorer = get_scorer(model)
     bench_e = ind.enrich(bench) if bench is not None and len(bench) > 200 else None
 

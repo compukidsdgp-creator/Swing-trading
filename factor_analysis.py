@@ -193,7 +193,8 @@ def run(
     """Fama-MacBeth analysis of the composite score against known factors."""
     import tiers as tr
 
-    step = step or horizon
+    # +3 avoids every window landing on the same weekday (see validate.py)
+    step = step or (horizon + 3)
     bench_e = ind.enrich(bench) if bench is not None and len(bench) > 260 else None
 
     enriched, tier_of = {}, {}

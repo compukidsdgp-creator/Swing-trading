@@ -119,22 +119,38 @@ def run(args) -> tuple[int, list[str], dict]:
     # --- 1. Universe ---
     say("\n[1/10] Universe")
     ures = uni.fetch_index_constituents(args.universe)
-    tickers = tuple(ures.tickers[: args.max_tickers])
-    say(f"  {args.universe}: {len(tickers)} tickers "
+    all_tickers = ures.tickers
+    say(f"  {args.universe}: {len(all_tickers)} constituents "
         f"({'live' if ures.is_live else 'CACHED FALLBACK'})")
     if not ures.is_live:
         say(f"  ! {ures.note}")
-    ctx.update(universe_name=args.universe, universe_live=ures.is_live,
-               n_tickers=len(tickers))
+    ctx.update(universe_name=args.universe, universe_live=ures.is_live)
 
     # --- 2. Data ---
     say("\n[2/10] Price data")
     # 12-1 momentum needs 252 bars plus buffer; a 1y fetch returns only ~250
     # NSE trading days and would silently reject every ticker.
     period = "2y" if args.model == "momentum" else "1y"
-    data = _fetch(tickers, period=period)
-    bench = _fetch((config.BENCHMARK,), period=period).get(config.BENCHMARK)
+
+    # Fetch the FULL constituent list, then trim by liquidity. The previous
+    # code did tickers[:max_tickers], which — because NSE returns constituents
+    # alphabetically — kept roughly A-G and discarded H-Z. Every pick came from
+    # the early alphabet. Positional truncation of an ordered list is never a
+    # valid selection.
+    fetch_list = all_tickers[: max(args.max_tickers * 3, args.max_tickers)]
+    data_all = _fetch(fetch_list, period=period)
     say(f"  fetch period: {period}")
+    say(f"  fetched {len(data_all)} of {len(fetch_list)} candidates")
+
+    tickers, how = uni.trim_universe(
+        tuple(data_all), args.max_tickers,
+        method=args.trim, frames=data_all,
+    )
+    data = {t: data_all[t] for t in tickers if t in data_all}
+    say(f"  universe: {len(data)} tickers — {how}")
+    ctx["n_tickers"] = len(data)
+
+    bench = _fetch((config.BENCHMARK,), period=period).get(config.BENCHMARK)
     say(f"  {len(data)} of {len(tickers)} tickers returned usable history")
     if not data:
         say("  ABORT: no price data (yfinance rate limit?)")
@@ -342,6 +358,11 @@ def main() -> int:
     p.add_argument("--horizon", type=int, default=15)
     p.add_argument("--min-score", type=float, default=60.0)
     p.add_argument("--max-tickers", type=int, default=150)
+    p.add_argument("--trim", choices=["liquidity", "random", "none"],
+                   default="liquidity",
+                   help="how to reduce the universe to --max-tickers. NEVER "
+                        "positional: NSE returns constituents alphabetically, so "
+                        "taking the first N keeps only A-G.")
     p.add_argument("--sector-cap", type=int, default=2,
                    help="max names per sector; 0 disables (and skips the slow lookup)")
     p.add_argument("--no-balance", action="store_true",

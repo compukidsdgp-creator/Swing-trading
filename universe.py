@@ -20,6 +20,7 @@ import datetime as dt
 import io
 from dataclasses import dataclass, field
 
+import numpy as np
 import pandas as pd
 import requests
 import streamlit as st
@@ -223,6 +224,64 @@ def _fallback(label: str, now: dt.datetime, reason: str) -> UniverseResult:
         is_live=False,
         note=f"{reason} Using bundled list — may be stale.",
     )
+
+
+def trim_universe(
+    tickers: tuple[str, ...],
+    max_n: int,
+    *,
+    method: str = "liquidity",
+    frames: dict[str, pd.DataFrame] | None = None,
+    seed: int = 0,
+) -> tuple[tuple[str, ...], str]:
+    """Reduce a universe to `max_n` WITHOUT introducing selection bias.
+
+    Why this exists
+    ---------------
+    The original code did `tickers[:max_n]`. NSE returns constituent lists
+    alphabetically by company name, so truncating positionally kept roughly
+    A-G and silently discarded H-Z. Every pick the system produced came from
+    the early alphabet. That is a pure artefact with no economic meaning.
+
+    Methods
+    -------
+    liquidity : keep the most-traded names. Defensible — these are the ones
+                you can actually trade without moving the price. Needs price
+                data; falls back to random if unavailable.
+    random    : unbiased sample. Statistically clean, but you may end up
+                holding illiquid names.
+    none      : no truncation. Correct when you can afford the fetch time.
+
+    Never positional. There is no ordering of an index constituent list that
+    makes "the first 150" a meaningful selection.
+    """
+    if max_n <= 0 or len(tickers) <= max_n:
+        return tickers, "no truncation needed"
+
+    if method == "none":
+        return tickers, "no truncation"
+
+    if method == "liquidity" and frames:
+        scored = []
+        for t in tickers:
+            df = frames.get(t)
+            if df is None or df.empty or len(df) < 20:
+                continue
+            try:
+                turn = float((df["Close"] * df["Volume"]).tail(20).mean())
+            except Exception:                                  # noqa: BLE001
+                continue
+            if turn > 0:
+                scored.append((t, turn))
+        if len(scored) >= max_n:
+            scored.sort(key=lambda x: x[1], reverse=True)
+            return tuple(t for t, _ in scored[:max_n]), \
+                f"top {max_n} by 20-day traded value"
+
+    rng = np.random.default_rng(seed)
+    idx = rng.choice(len(tickers), size=max_n, replace=False)
+    return tuple(tickers[i] for i in sorted(idx)), \
+        f"random sample of {max_n} (seed {seed})"
 
 
 def diff_universes(old: tuple[str, ...], new: tuple[str, ...]) -> dict[str, list[str]]:

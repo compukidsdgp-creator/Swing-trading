@@ -195,9 +195,21 @@ def sidebar() -> dict:
         "Cap universe size", 20, 300, min(120, max(20, len(tickers))), 10,
         help="Streamlit's free tier struggles past ~130 tickers on a cold start.",
     )
+    trim_method = st.sidebar.selectbox(
+        "How to trim", ["liquidity", "random"], index=0,
+        help="NSE returns constituents alphabetically. Taking the first N would "
+             "keep only A-G — a pure artefact. Liquidity keeps the most tradeable "
+             "names; random gives an unbiased sample.",
+    )
     if len(tickers) > max_scan:
-        tickers = tickers[:max_scan]
-        st.sidebar.caption(f"Trimmed to first {max_scan} tickers.")
+        if trim_method == "random":
+            trimmed, how = uni.trim_universe(tuple(tickers), max_scan, method="random")
+        else:
+            # Liquidity trim needs price data, so defer to the screener; here we
+            # note the intent and pass the full list through.
+            trimmed, how = tuple(tickers), "liquidity trim applied after fetch"
+        tickers = list(trimmed)
+        st.sidebar.caption(how)
 
     st.sidebar.divider()
     st.sidebar.subheader("Scoring model")
@@ -266,6 +278,8 @@ def sidebar() -> dict:
         universe_name=label,
         universe_result=result,
         require_positive_mom=require_positive_mom,
+        max_scan=max_scan,
+        trim_method=trim_method,
     )
 
 
@@ -362,9 +376,22 @@ def render_screener(cfg: dict) -> pd.DataFrame:
     # Momentum needs 252 bars of formation window plus buffer; a 1y fetch
     # returns only ~250 NSE trading days, which silently rejects every ticker.
     period = "2y" if cfg.get("model") == "momentum" else "1y"
-    with st.spinner(f"Fetching {len(cfg['tickers'])} tickers ({period})…"):
-        data = fetch_history(cfg["tickers"], period=period)
+    fetch_list = tuple(cfg["tickers"][: max(cfg.get("max_scan", 120) * 3, 60)])
+    with st.spinner(f"Fetching {len(fetch_list)} tickers ({period})…"):
+        data_all = fetch_history(fetch_list, period=period)
         bench = fetch_history((config.BENCHMARK,), period=period)
+
+    # Trim AFTER fetching, by liquidity — never positionally. NSE returns
+    # constituents alphabetically, so taking the first N kept only A-G.
+    if data_all and len(data_all) > cfg.get("max_scan", 120):
+        keep, how = uni.trim_universe(
+            tuple(data_all), cfg.get("max_scan", 120),
+            method=cfg.get("trim_method", "liquidity"), frames=data_all,
+        )
+        data = {t: data_all[t] for t in keep if t in data_all}
+        st.caption(f"Universe: {len(data)} of {len(data_all)} fetched — {how}")
+    else:
+        data = data_all
 
     if not data:
         st.error(

@@ -197,11 +197,16 @@ def to_text(bucket: Bucket, *, regime_desc: str = "") -> str:
         lines.append(f"_{regime_desc}_")
     lines.append("")
 
+    has_mom = "Momentum" in bucket.picks.columns
     for _, r in bucket.picks.iterrows():
         tier = str(r.get("Tier", ""))[:1].upper()
+        # Show the raw momentum figure alongside the percentile. A score of 100
+        # means "best in today's universe", which in a weak market could still
+        # be a negative return — the reader needs both numbers.
+        mom = f" · mom {r['Momentum']:+.0f}%" if has_mom else ""
         lines.append(
             f"{int(r['Rank'])}. {r['Ticker']} [{tier}] "
-            f"sc {int(r['Score'])} · ₹{r['Close']:,.0f} · "
+            f"sc {int(r['Score'])}{mom} · ₹{r['Close']:,.0f} · "
             f"RSI {r['RSI']:.0f} · ATR {r['ATR_pct']:.1f}%"
         )
 

@@ -151,16 +151,20 @@ def build_html(
                      'That is a valid outcome, not a failure &mdash; particularly in a '
                      'neutral or risk-off regime.</div>')
     else:
-        cols = [c for c in ["Rank", "Ticker", "Tier", "Score", "Close", "RSI",
-                            "ATR_pct", "Turnover_Cr"] if c in picks.columns]
+        cols = [c for c in ["Rank", "Ticker", "Tier", "Score", "Momentum", "Close",
+                            "RSI", "ATR_pct", "Turnover_Cr"] if c in picks.columns]
         view = picks[cols].copy()
+        if "Momentum" in view.columns:
+            view["Momentum"] = view["Momentum"].map(lambda v: f"{v:+.1f}%")
         view = view.rename(columns={"ATR_pct": "ATR %", "Turnover_Cr": "₹Cr/day",
-                                    "Close": "Price ₹"})
-        parts.append(_table(view, num_cols={"Rank", "Score", "Price ₹", "RSI",
-                                            "ATR %", "₹Cr/day"}))
+                                    "Close": "Price ₹", "Momentum": "12-1 mom"})
+        parts.append(_table(view, num_cols={"Rank", "Score", "12-1 mom", "Price ₹",
+                                            "RSI", "ATR %", "₹Cr/day"}))
         parts.append('<div class="note">Recorded to the forward log before outcomes '
                      'exist. Confirm every level on your broker terminal &mdash; these '
-                     'are end-of-day prices.</div>')
+                     'are end-of-day prices.<br><strong>Score is a percentile within '
+                     'today&rsquo;s universe, not an absolute quality measure</strong> '
+                     '&mdash; read it alongside the 12-1 momentum figure.</div>')
 
     # --- Forward performance ---
     parts.append("<h2>Forward log performance</h2>")

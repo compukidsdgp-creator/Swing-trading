@@ -39,6 +39,7 @@ import bhavcopy as bhav
 import broker as brk
 import bucket as bk
 import costs
+import horizon as hz
 
 st.set_page_config(
     page_title="SwingScope — NSE Swing Research",
@@ -1797,6 +1798,156 @@ def render_true_cost(cfg: dict) -> None:
 
 
 # --------------------------------------------------------------------------
+# Horizon sweep — the highest-leverage analysis
+# --------------------------------------------------------------------------
+def render_horizon(cfg: dict) -> None:
+    st.subheader("Holding period sweep")
+    st.caption(
+        "The single largest lever available. At 15 days the edge nets to roughly "
+        "zero once 20% STCG and ~0.35% charges are applied. This measures IC, "
+        "**gross quintile spread in percentage points**, and net-of-tax economics "
+        "across holding periods — then reports the whole curve, because picking "
+        "the best from a sweep is multiple testing."
+    )
+
+    st.info(
+        "**What to look for: a plateau, not a peak.** A real effect works across "
+        "a contiguous band of horizons. A strategy viable at exactly one value and "
+        "nowhere near it has found noise — and testing nine horizons gives noise "
+        "nine chances to look good.",
+        icon="🎯",
+    )
+
+    c = st.columns(4)
+    years = c[0].select_slider("Period", ["2y", "5y", "10y"], value="5y", key="hz_y")
+    n_stocks = c[1].slider("Stocks", 30, 150, 100, 10, key="hz_n")
+    charges = c[2].number_input("Charges %", 0.0, 3.0, 0.35, 0.05, key="hz_c")
+    win = c[3].slider("Win rate", 0.30, 0.80, 0.55, 0.05, key="hz_w")
+
+    preset = st.radio("Horizons to test", ["Standard (9)", "Short focus", "Wide"],
+                      horizontal=True, key="hz_p")
+    horizons = {"Standard (9)": hz.DEFAULT_HORIZONS,
+                "Short focus": (5, 8, 10, 12, 15, 18, 20, 25, 30),
+                "Wide": (10, 20, 40, 60, 90, 120, 180, 250)}[preset]
+
+    if not st.button("Run horizon sweep", type="primary", key="hz_run"):
+        st.info(f"Tests {len(horizons)} horizons: {', '.join(map(str, horizons))} days. "
+                "Takes 4–10 minutes.")
+        return
+
+    tickers = tuple(cfg["tickers"][:n_stocks])
+    with st.spinner(f"Fetching {years} history for {len(tickers)} tickers…"):
+        frames = fetch_history(tickers, period=years)
+        bench = fetch_history((config.BENCHMARK,), period=years).get(config.BENCHMARK)
+    if not frames:
+        st.error("No data returned — yfinance may be rate-limiting.")
+        return
+
+    bar = st.progress(0.0)
+    status = st.empty()
+
+    def _p(i, n, h):
+        bar.progress(i / n)
+        status.caption(f"Measuring horizon {h} days… ({i}/{n})")
+
+    res = hz.sweep(frames, bench, horizons=horizons,
+                   model=cfg.get("model", "momentum"),
+                   charges_pct=charges, win_rate=win, progress=_p)
+    bar.empty(); status.empty()
+
+    if res.table.empty:
+        st.error(res.verdict_msg or "No horizon produced enough windows.")
+        return
+
+    {"good": st.success, "ok": st.info, "warn": st.warning,
+     "bad": st.error, "error": st.error}[res.verdict_level](res.verdict_msg)
+    for n in res.notes:
+        st.caption(f"· {n}")
+
+    if res.best_by_annualised:
+        b = res.best_by_annualised
+        m = st.columns(5)
+        m[0].metric("Best horizon", f"{int(b['horizon'])}d")
+        m[1].metric("Gross spread", f"{b['gross_spread_pct']:.2f}%")
+        m[2].metric("Net/cycle", f"{b['net_per_cycle_pct']:+.3f}%")
+        m[3].metric("Annualised", f"{b['annualised_net_pct']:+.2f}%")
+        m[4].metric("IC (t)", f"{b['mean_ic']:+.4f} ({b['ic_t']:.1f})")
+
+    if res.plateau:
+        st.caption(f"**Viable plateau:** {res.plateau[0]}–{res.plateau[-1]} days "
+                   f"({len(res.plateau)} contiguous horizons)")
+
+    st.markdown("##### Full curve")
+    show = res.table[["horizon", "windows", "mean_ic", "ic_t", "gross_spread_pct",
+                      "spread_t", "cycles_per_year", "tax_rate",
+                      "net_per_cycle_pct", "annualised_net_pct", "viable"]]
+    st.dataframe(
+        show, hide_index=True, use_container_width=True,
+        column_config={
+            "mean_ic": st.column_config.NumberColumn("IC", format="%.4f"),
+            "ic_t": st.column_config.NumberColumn("IC t", format="%.2f"),
+            "gross_spread_pct": st.column_config.NumberColumn("Gross %", format="%.2f"),
+            "spread_t": st.column_config.NumberColumn("Spread t", format="%.2f"),
+            "net_per_cycle_pct": st.column_config.NumberColumn("Net %", format="%+.3f"),
+            "annualised_net_pct": st.column_config.NumberColumn("Annual %", format="%+.2f"),
+            "tax_rate": st.column_config.NumberColumn("Tax", format="%.3f"),
+        },
+    )
+
+    st.markdown("##### Annualised net return by horizon")
+    st.caption("The curve that matters. Look for a broad hump, not a single spike.")
+    st.bar_chart(res.table.set_index("horizon")["annualised_net_pct"])
+
+    cc = st.columns(2)
+    with cc[0]:
+        st.markdown("**IC by horizon**")
+        st.line_chart(res.table.set_index("horizon")["mean_ic"])
+    with cc[1]:
+        st.markdown("**Gross spread by horizon**")
+        st.line_chart(res.table.set_index("horizon")["gross_spread_pct"])
+
+    st.download_button("Download sweep (CSV)", res.table.to_csv(index=False).encode(),
+                       file_name="horizon_sweep.csv", mime="text/csv")
+
+    # Sub-period stability on the winner
+    if res.best_by_annualised:
+        best_h = int(res.best_by_annualised["horizon"])
+        st.markdown(f"##### Sub-period stability at {best_h} days")
+        st.caption(
+            "An edge present in one third of the sample and absent elsewhere is a "
+            "regime artefact, not a strategy. This splits the history chronologically."
+        )
+        with st.spinner("Splitting history…"):
+            stab = hz.stability_check(frames, bench, best_h,
+                                      model=cfg.get("model", "momentum"))
+        if stab.empty:
+            st.caption("Not enough history to split meaningfully.")
+        else:
+            st.dataframe(
+                stab[["split", "period", "windows", "mean_ic", "ic_t",
+                      "gross_spread_pct"]].round(4),
+                hide_index=True, use_container_width=True)
+            pos = (stab["mean_ic"] > 0).sum()
+            if pos == len(stab):
+                st.success(f"Positive IC in all {len(stab)} sub-periods — consistent.")
+            elif pos == 0:
+                st.error("Negative IC in every sub-period.")
+            else:
+                st.warning(
+                    f"Positive in only {pos} of {len(stab)} sub-periods. The edge "
+                    "is regime-dependent, which matters more than the average."
+                )
+
+    st.warning(
+        "**Before acting on this:** the sweep is measured on the same data the "
+        "signal was selected on, so it is optimistic. And a longer horizon changes "
+        "what you are trading — a 60-day hold is position trading, not swing "
+        "trading, with different drawdown behaviour and different psychology.",
+        icon="⚠️",
+    )
+
+
+# --------------------------------------------------------------------------
 # Broker tab — measured costs vs assumed costs
 # --------------------------------------------------------------------------
 def render_broker() -> None:
@@ -2080,6 +2231,8 @@ def main() -> None:
         render_data_quality(cfg)
         st.divider()
         render_bhavcopy()
+        st.divider()
+        render_horizon(cfg)
         st.divider()
         render_true_cost(cfg)
     with tabs[4]:

@@ -264,6 +264,12 @@ def run(args) -> tuple[int, list[str], dict]:
     if "error" not in fs:
         say(f"  forward: {fs['evaluated_picks']} picks, mean "
             f"{fs['mean_return_pct']:+.2f}%, IC {fs.get('forward_ic')}")
+        if args.backtest_ic:
+            verdict = flog.compare_to_backtest(fs.get("forward_ic"), args.backtest_ic)
+            say(f"  vs backtest IC {args.backtest_ic}: {verdict}")
+            ctx["retention_note"] = verdict
+    else:
+        say(f"  {fs['error']}")
     ctx["bucket_table"] = flog.by_dimension(log, "score_bucket")
     ctx["tier_table"] = flog.by_dimension(log, "tier")
 
@@ -277,13 +283,36 @@ def run(args) -> tuple[int, list[str], dict]:
         regime_pct=reg.pct_from_200dma, breadth=reg.breadth,
         picks=ctx.get("picks"), forward_summary=ctx.get("forward_summary"),
         bucket_table=ctx.get("bucket_table"), tier_table=ctx.get("tier_table"),
-        notes=([f"Ranking model: {args.model}"] + news_notes + b.notes),
+        notes=([f"Ranking model: {args.model}"]
+               + ([ctx["retention_note"]] if ctx.get("retention_note") else [])
+               + news_notes + b.notes),
     )
     written = rep.save(html, REPORT_DIR, stamp, want_pdf=not args.no_pdf)
     for k, v in written.items():
         say(f"  wrote {k}: {v}")
     ctx["html"] = html
     ctx["written"] = written
+
+    # --- 9b. Month-end review ---
+    if args.monthly and "error" not in fs:
+        import monthly as mon
+        ev = log[log["status"] == "evaluated"]
+        dates = pd.to_datetime(ev["snapshot_date"], errors="coerce").dropna()
+        m_html = mon.build_monthly_html(
+            generated=stamp,
+            period_start=(dates.min().date() if len(dates)
+                          else stamp.date() - dt.timedelta(days=30)),
+            period_end=stamp.date(), log=log, forward_summary=fs,
+            bucket_table=flog.by_dimension(log, "score_bucket"),
+            tier_table=flog.by_dimension(log, "tier"),
+            regime_table=flog.by_dimension(log, "regime"),
+            backtest_ic=args.backtest_ic,
+        )
+        m_written = mon.save_monthly(m_html, REPORT_DIR, stamp, want_pdf=not args.no_pdf)
+        for kind, path in m_written.items():
+            say(f"  wrote monthly {kind}: {path}")
+        written.update({f"monthly_{k}": v for k, v in m_written.items()})
+        html = m_html          # email the month-end review instead
 
     # --- 10. Notify ---
     say("\n[10/10] Notify")
@@ -334,6 +363,12 @@ def main() -> int:
                         "~0.5pp edge. On by default.")
     p.add_argument("--include-small", dest="exclude_small", action="store_false",
                    help="override the cost-viability exclusion")
+    p.add_argument("--backtest-ic", type=float, default=None,
+                   help="backtest IC from the Validation tab. Enables the "
+                        "forward-vs-backtest retention comparison in the report — "
+                        "the single most informative number once forward data exists.")
+    p.add_argument("--monthly", action="store_true",
+                   help="also produce the month-end review report")
     args = p.parse_args()
 
     if args.daily:

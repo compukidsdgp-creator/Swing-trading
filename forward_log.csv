@@ -1,0 +1,4 @@
+snapshot_date,ticker,tier,score,rank,regime,price_at_pick,horizon_days,target_eval_date,price_at_eval,fwd_return_pct,bench_return_pct,excess_return_pct,status,notes
+2026-07-27,ATHERENERG,large,100,1,risk_off,1203.7,15,2026-08-17,,,,,open,
+2026-07-27,BHARATFORG,large,93,2,risk_off,2160.0,15,2026-08-17,,,,,open,
+2026-07-27,ADANIENSOL,large,90,3,risk_off,1683.7,15,2026-08-17,,,,,open,

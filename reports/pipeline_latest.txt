@@ -1,39 +1,44 @@
 ==================================================================
-SwingScope pipeline — 2026-07-26 14:29
+SwingScope pipeline — 2026-07-27 06:49
 ==================================================================
 
 [1/10] Universe
   Nifty 500: 150 tickers (live)
 
 [2/10] Price data
+  fetch period: 2y
   150 of 150 tickers returned usable history
 
 [3/10] Regime
-  RISK_OFF — Nifty -4.2% vs 200DMA, breadth 53%
+  RISK_OFF — Nifty -3.4% vs 200DMA, breadth 61%
   Tiers permitted: large
 
 [4/10] Screener
-  scored 150, 74 above their 50 EMA
+  model: 12-1 momentum (residual IC +0.055, Newey-West t = 3.73)
+  ranked 41 stocks by cross-sectional momentum
+  small caps excluded — ~1.5% round-trip cost exceeds the ~0.5pp edge
 
 [5/10] Bucket
   sector data for 40 of 40 candidates
   bucket: 3 of 3 target — mix {'large': 3}
-  · Regime risk off: excluded 26 candidates in disallowed tiers (permitted: large).
+  · Regime risk off: excluded 7 candidates in disallowed tiers (permitted: large).
   · Bucket capped at 3 by the risk off regime (requested 10).
+  · Sector cap reached: Consumer Cyclical (max 2 each).
 
 [6/10] News sentiment
-  BAJAJ-AUTO     Neutral          +0.22 (8 items)  <-- EARNINGS in feed, check the date
-  ANANTRAJ       Bullish          +0.98 (8 items)  <-- EARNINGS in feed, check the date
-  DATAPATTNS     Mixed            +0.39 (8 items)
+  ATHERENERG     Neutral          +0.17 (8 items)  <-- EARNINGS in feed, check the date
+  BHARATFORG     Leaning bullish  +0.56 (8 items)  <-- EARNINGS in feed, check the date
+  ADANIENSOL     Neutral          -0.31 (8 items)  <-- EARNINGS in feed, check the date
 
 [7/10] Forward log
   recorded 3 picks (log now 3 rows)
 
 [8/10] Evaluate matured picks
   evaluated 0 (of 3 open)
+  no evaluated picks yet (3 still open)
 
 [9/10] Report
-  wrote html: reports/report_20260726.html
+  wrote html: reports/report_20260727.html
 
 [10/10] Notify
   {'telegram': True}

@@ -229,7 +229,9 @@ def dispatch(
     if "telegram" in wanted:
         doc = None
         if attachments:
-            doc = attachments.get("pdf") or attachments.get("html")
+            doc = attachments.get("pdf")
+        if doc is None:
+            doc = attachments.get("html")
         results["telegram"] = send_telegram(text_body, doc)
     if "whatsapp" in wanted:
         results["whatsapp"] = send_whatsapp(text_body)

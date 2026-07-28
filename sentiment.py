@@ -134,8 +134,13 @@ def _score_tokens(tokens: list[str]) -> tuple[float, list[tuple[str, float]], bo
     any_negation = False
 
     for idx, tok in enumerate(tokens):
-        base = POSITIVE.get(tok) or NEGATIVE.get(tok)
-        if base is None:
+        # Explicit membership check: `or` would treat a weight of 0.0 as absent
+        # and fall through to the other lexicon.
+        if tok in POSITIVE:
+            base = POSITIVE[tok]
+        elif tok in NEGATIVE:
+            base = NEGATIVE[tok]
+        else:
             continue
 
         weight = 1.0

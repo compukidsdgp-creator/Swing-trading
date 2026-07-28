@@ -315,7 +315,10 @@ def verdict(report: dict) -> tuple[str, str]:
         return "warn", (f"Only {n} records. Enough for a rough read, not a reliable "
                         "one — costs vary with order size, time of day and liquidity.")
 
-    allin = report.get("all_in_round_trip_pct") or report.get("measured_round_trip_pct")
+    # Explicit None check: `or` would discard a legitimate measured cost of 0.0
+    allin = report.get("all_in_round_trip_pct")
+    if allin is None:
+        allin = report.get("measured_round_trip_pct")
     if allin is None:
         return "warn", ("Trade records found but the API did not expose charge or fill "
                         "fields needed to compute cost. Field names vary; check the raw "

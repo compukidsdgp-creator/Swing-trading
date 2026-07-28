@@ -416,6 +416,64 @@ def test_data_quality_detects(iters: int) -> None:
 # --------------------------------------------------------------------------
 # INVARIANT 7 — universe trimming is unbiased
 # --------------------------------------------------------------------------
+def test_no_dataframe_truthiness(iters: int) -> None:
+    """Guard against `df_a or df_b`, which raises on ambiguous truthiness.
+
+    This exact bug was introduced twice — first in forward_log.py, then again
+    in daily_tracker.py. A static check is cheaper than finding it a third time
+    at runtime.
+    """
+    import pathlib
+    import re
+
+    offenders = []
+    pattern = re.compile(r"\.get\([^)]*\)\s+or\s+\w+\.get\(")
+    for p in sorted(pathlib.Path(".").glob("*.py")):
+        if p.name.startswith("test_"):
+            continue
+        for n, line in enumerate(p.read_text().splitlines(), 1):
+            if line.strip().startswith("#"):
+                continue
+            if pattern.search(line):
+                offenders.append(f"{p.name}:{n}: {line.strip()[:70]}")
+    assert not offenders, (
+        "dict.get(...) or dict.get(...) pattern found — raises if the value is a "
+        "DataFrame:\n  " + "\n  ".join(offenders)
+    )
+
+
+def test_daily_tracker_integrity(iters: int) -> None:
+    """Daily tracker must be idempotent and never corrupt the weekly log."""
+    import datetime as _dt
+    import daily_tracker as dtm
+
+    rng = np.random.default_rng(83)
+    for k in range(min(iters, 25)):
+        n = int(rng.integers(1, 8))
+        picks = pd.DataFrame({
+            "Rank": range(1, n + 1),
+            "Ticker": [f"T{j}" for j in range(n)],
+            "Tier": ["large"] * n,
+            "Score": rng.integers(50, 101, n),
+            "Momentum": rng.uniform(-20, 150, n).round(1),
+            "Close": rng.uniform(10, 5000, n).round(2),
+        })
+        obs = dtm._empty(dtm.OBS_COLUMNS)
+        d = _dt.date(2026, 6, 1) + _dt.timedelta(days=k)
+
+        obs, added = dtm.record_bucket(obs, picks, regime_state="risk_on", obs_date=d)
+        assert added == n, "wrong observation count"
+        obs, again = dtm.record_bucket(obs, picks, regime_state="risk_on", obs_date=d)
+        assert again == 0, "duplicate observation recorded for the same date"
+
+        obs2, empty_added = dtm.record_bucket(
+            dtm._empty(dtm.OBS_COLUMNS), pd.DataFrame(),
+            regime_state="risk_off", obs_date=d)
+        assert empty_added == 1, "empty bucket must still be recorded"
+
+        assert list(obs.columns) == dtm.OBS_COLUMNS, "observation schema drifted"
+
+
 def test_universe_trim_unbiased(iters: int) -> None:
     import universe as uni
     import string
@@ -454,6 +512,8 @@ def main(iters: int = 100) -> int:
         ("sentiment: bounded", test_sentiment_bounds),
         ("data quality: detects defects", test_data_quality_detects),
         ("universe: trim unbiased", test_universe_trim_unbiased),
+        ("static: no DataFrame truthiness", test_no_dataframe_truthiness),
+        ("daily tracker: integrity", test_daily_tracker_integrity),
     ]
     for name, fn in suites:
         print(f"  running {name} …", flush=True)

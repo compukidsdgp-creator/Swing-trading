@@ -56,6 +56,7 @@ import bucket as bk          # noqa: E402
 import config                # noqa: E402
 import forward_log as flog   # noqa: E402
 import newsfeed              # noqa: E402
+import daily_tracker as dtrack  # noqa: E402
 import notify                # noqa: E402
 import regime as rg          # noqa: E402
 import report as rep         # noqa: E402
@@ -250,6 +251,26 @@ def run(args) -> tuple[int, list[str], dict]:
         say("  skipped")
     ctx["news_notes"] = news_notes
 
+    # --- 6b. Daily observation diary ---
+    #
+    # Deliberately separate from the forward log. Daily snapshots overlap
+    # heavily and would inflate the significance of the weekly evidence while
+    # adding no information. This is a diary; forward_log.csv is the evidence.
+    if args.daily_track:
+        say("\n[6b] Daily tracker")
+        try:
+            tr = dtrack.run(
+                b.picks if not b.is_empty else pd.DataFrame(),
+                data, regime_state=reg.state,
+                notes=f"model={args.model}",
+            )
+            say(f"  +{tr.new_observations} observations, +{tr.new_price_rows} price rows")
+            say(f"  tracking {tr.tracked_tickers} tickers")
+            if tr.excel_path:
+                say(f"  workbook: {tr.excel_path}")
+        except Exception as exc:                               # noqa: BLE001
+            say(f"  tracker failed ({type(exc).__name__}: {exc}) — continuing")
+
     # --- 7. Log ---
     say("\n[7/10] Forward log")
     log = flog.from_csv(LOG_PATH.read_bytes()) if LOG_PATH.exists() else flog.empty_log()
@@ -395,6 +416,10 @@ def main() -> int:
                         "the single most informative number once forward data exists.")
     p.add_argument("--monthly", action="store_true",
                    help="also produce the month-end review report")
+    p.add_argument("--daily-track", action="store_true",
+                   help="append to the daily observation diary and rebuild the "
+                        "Excel workbook. Kept entirely separate from the weekly "
+                        "forward log, whose windows must not overlap.")
     args = p.parse_args()
 
     if args.daily:

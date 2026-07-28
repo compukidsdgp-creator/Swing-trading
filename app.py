@@ -36,6 +36,7 @@ import forward_log as flog
 import sentiment as sent
 import report as rep
 import bucket as bk
+import portfolio as pfl
 
 
 # --------------------------------------------------------------------------
@@ -1773,6 +1774,50 @@ def render_true_cost(cfg: dict) -> None:
     hz = costs.compare_horizons(gross, base_days=hold, charges_pct=charges)
     st.dataframe(hz, hide_index=True, use_container_width=True)
     st.bar_chart(hz.set_index("holding_days")["annualised_net_pct"])
+
+    st.markdown("##### Portfolio weighting")
+    st.caption(
+        "Equal-rupee allocation is not equal risk. Risk parity sets weights so "
+        "each position contributes the same share of portfolio variance — "
+        "volatile and highly-correlated names get less."
+    )
+    if st.button("Compute weights", key="pf_w"):
+        b_pf = st.session_state.get("bucket")
+        if b_pf is None or b_pf.is_empty:
+            st.warning("Build a bucket on the Screener tab first.")
+        else:
+            tk = tuple(f"{t}.NS" for t in b_pf.picks["Ticker"])
+            with st.spinner("Fetching returns…"):
+                fr = fetch_history(tk, period="1y")
+            rets = costs.build_returns_matrix(fr, lookback=120) if costs else pd.DataFrame()
+            if rets.empty or rets.shape[1] < 2:
+                st.warning("Not enough overlapping history to weight.")
+            else:
+                cmp_df = pfl.compare_schemes(rets)
+                st.markdown("**Weighting schemes compared**")
+                st.caption(
+                    "`risk_concentration` is the largest risk contribution over "
+                    "the average. Equal weight typically lets one position "
+                    "dominate portfolio variance."
+                )
+                st.dataframe(cmp_df, hide_index=True, use_container_width=True)
+
+                rp = pfl.risk_parity(rets)
+                st.markdown("**Risk parity weights**")
+                st.dataframe(rp.to_frame(), use_container_width=True)
+                k = st.columns(2)
+                k[0].metric("Diversification ratio", rp.diversification_ratio)
+                k[1].metric("Effective bets",
+                            f"{rp.effective_n} of {rets.shape[1]}")
+                for n_ in rp.notes:
+                    st.caption(f"· {n_}")
+
+                st.info(
+                    "Risk parity improves how capital is split. It cannot create "
+                    "diversification that is not there — if effective bets stay "
+                    "far below position count, the bucket is concentrated "
+                    "regardless of weighting.", icon="ℹ️",
+                )
 
     st.markdown("##### Correlation: how many bets are you really making?")
     if not st.button("Analyse current bucket", key="tc_run"):

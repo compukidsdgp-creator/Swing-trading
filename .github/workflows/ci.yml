@@ -95,6 +95,80 @@ jobs:
       - name: Invariant tests
         run: python test_invariants.py 25
 
+      # --- Security ---
+      #
+      # Credentials committed even once live in git history forever, and bots
+      # scan public repos for them within minutes. A grep is not a substitute
+      # for a real scanner, but it catches the obvious cases before push.
+      - name: Scan for committed secrets
+        run: |
+          python - <<'PY'
+          import pathlib, re, sys
+
+          patterns = {
+              "Telegram bot token": r"\b\d{8,10}:[A-Za-z0-9_-]{35}\b",
+              "generic API key":    r"(?i)(api[_-]?key|apikey)\s*[=:]\s*['\"][A-Za-z0-9_\-]{16,}['\"]",
+              "generic secret":     r"(?i)(secret|password|passwd)\s*[=:]\s*['\"][^'\"]{8,}['\"]",
+              "AWS access key":     r"\bAKIA[0-9A-Z]{16}\b",
+              "private key block":  r"-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----",
+              "TOTP secret":        r"(?i)totp[_-]?secret\s*[=:]\s*['\"][A-Z2-7]{16,}['\"]",
+          }
+          # Documentation and templates legitimately contain placeholder text.
+          allow = ("secrets.toml.example", "README.md", "MANUAL.md",
+                   "ci.yml", "AUDIT_REPORT.md", "COMPLIANCE_AUDIT.md")
+
+          hits = []
+          for p in pathlib.Path(".").rglob("*"):
+              if not p.is_file() or ".git/" in str(p):
+                  continue
+              if p.suffix not in (".py", ".yml", ".yaml", ".toml", ".json",
+                                  ".env", ".cfg", ".ini", ".txt"):
+                  continue
+              if p.name in allow:
+                  continue
+              try:
+                  text = p.read_text(errors="ignore")
+              except Exception:
+                  continue
+              for label, pat in patterns.items():
+                  for m in re.finditer(pat, text):
+                      line = text[:m.start()].count("\n") + 1
+                      hits.append(f"{p}:{line}: possible {label}")
+
+          if hits:
+              print("POSSIBLE SECRETS COMMITTED:")
+              for h in hits[:20]:
+                  print("  " + h)
+              print("\nIf real: revoke the credential immediately, then remove it "
+                    "from git history. Rotating is not optional — it is already public.")
+              sys.exit(1)
+          print("No committed secrets detected.")
+          PY
+
+      - name: Check .gitignore covers credential files
+        run: |
+          python - <<'PY'
+          import pathlib, sys
+          required = [".streamlit/secrets.toml", "__pycache__"]
+          gi = pathlib.Path(".gitignore")
+          if not gi.exists():
+              print(".gitignore is missing — credential files are unprotected.")
+              sys.exit(1)
+          content = gi.read_text()
+          missing = [r for r in required if r not in content]
+          if missing:
+              print(f".gitignore does not cover: {missing}")
+              sys.exit(1)
+          print(".gitignore covers credential paths.")
+          PY
+
+      - name: Audit dependencies for known vulnerabilities
+        run: |
+          pip install pip-audit --quiet 2>/dev/null || true
+          pip-audit --desc --skip-editable 2>&1 | tail -30 || \
+            echo "pip-audit unavailable — skipping (non-blocking)"
+        continue-on-error: true
+
       - name: Report result
         if: always()
         run: |

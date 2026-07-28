@@ -1,26 +1,25 @@
-# Core — required for the Streamlit app
-streamlit>=1.40
-yfinance>=0.2.50
-pandas>=2.2
-numpy>=1.26
-plotly>=5.20
-requests>=2.31
+# Pinned deliberately.
+#
+# yfinance breaks regularly when Yahoo changes its API, and pandas 3.0 altered
+# dtype-assignment behaviour in a way that already caused a bug here. Floating
+# versions mean an unattended workflow can fail one morning for reasons entirely
+# unrelated to your code.
+#
+# To upgrade: bump one line, run `python test_invariants.py 50`, and only then
+# commit. The CI workflow will confirm.
 
-# Excel export for the daily observation tracker
-openpyxl>=3.1
+streamlit==1.41.1
+yfinance==0.2.51
+pandas==2.2.3
+numpy==1.26.4
+plotly==5.24.1
+requests==2.32.3
+openpyxl==3.1.5
 
 # Optional — Paytm Money broker integration (read-only cost measurement).
-# Only needed if you use the Broker tab. NOT available on PyPI — install
-# from GitHub:
+# NOT on PyPI; install from GitHub:
 #     pip install git+https://github.com/paytmmoney/pyPMClient.git
 
-# Optional — PDF report generation.
-# Deliberately NOT installed on Streamlit Cloud: WeasyPrint needs system
-# libraries (pango, cairo) that aren't available there, and the app never
-# needs PDF — it exports HTML.
-# The GitHub Actions workflow installs it separately for the automated
-# reports. To generate PDFs locally:
-#     pip install weasyprint
-# (Windows also needs the GTK3 runtime; on Linux/macOS pip handles it.)
-#
-# weasyprint>=60.0
+# Optional — PDF report generation. Needs system libraries (pango, cairo) that
+# Streamlit Cloud does not provide, so it is installed only in CI workflows.
+# Locally:  pip install weasyprint

@@ -55,6 +55,7 @@ except ImportError:
 import bucket as bk          # noqa: E402
 import config                # noqa: E402
 import forward_log as flog   # noqa: E402
+import health               # noqa: E402
 import newsfeed              # noqa: E402
 import daily_tracker as dtrack  # noqa: E402
 import notify                # noqa: E402
@@ -156,6 +157,24 @@ def run(args) -> tuple[int, list[str], dict]:
     if not data:
         say("  ABORT: no price data (yfinance rate limit?)")
         return 1, log_lines, ctx
+
+    # --- Health gate ---
+    #
+    # Stale data is more dangerous than missing data: the pipeline would run,
+    # produce confident picks from last week's prices, and report success. This
+    # aborts instead.
+    hc = health.run_all(data, requested=len(tickers))
+    ctx["health"] = hc.checks
+    for w in hc.warnings:
+        say(f"  ! {w}")
+    if not hc.passed:
+        for f in hc.failures:
+            say(f"  FAIL {f}")
+        say("\n  ABORT: health checks failed. Producing picks from bad or stale "
+            "data would corrupt the forward log, which is the one thing that "
+            "cannot be reconstructed.")
+        return 1, log_lines, ctx
+    say(f"  health: {sum(hc.checks.values())}/{len(hc.checks)} checks passed")
 
     # --- 3. Regime ---
     say("\n[3/10] Regime")

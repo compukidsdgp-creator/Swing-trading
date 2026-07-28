@@ -428,6 +428,9 @@ def test_no_dataframe_truthiness(iters: int) -> None:
 
     offenders = []
     pattern = re.compile(r"\.get\([^)]*\)\s+or\s+\w+\.get\(")
+    # Float equality: std()/mean()/sum() compared with == is almost always a
+    # bug. The standard deviation of identical values is ~1e-14, not 0.0.
+    float_eq = re.compile(r"float\([^)]*\.(std|mean|sum|var)\([^)]*\)\)\s*==")
     for p in sorted(pathlib.Path(".").glob("*.py")):
         if p.name.startswith("test_"):
             continue
@@ -435,10 +438,15 @@ def test_no_dataframe_truthiness(iters: int) -> None:
             if line.strip().startswith("#"):
                 continue
             if pattern.search(line):
-                offenders.append(f"{p.name}:{n}: {line.strip()[:70]}")
+                offenders.append(f"{p.name}:{n}: [dict-or] {line.strip()[:60]}")
+            if float_eq.search(line):
+                offenders.append(f"{p.name}:{n}: [float-eq] {line.strip()[:60]}")
     assert not offenders, (
-        "dict.get(...) or dict.get(...) pattern found — raises if the value is a "
-        "DataFrame:\n  " + "\n  ".join(offenders)
+        "Fragile patterns found:\n"
+        "  [dict-or]  a.get(x) or b.get(y) — raises on DataFrames, and discards "
+        "legitimate 0.0 values\n"
+        "  [float-eq] float(...std()) == — floating point is never exactly equal\n\n"
+        + "\n  ".join(offenders)
     )
 
 

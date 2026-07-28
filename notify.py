@@ -69,6 +69,11 @@ def send_email(
         if p.suffix == ".pdf":
             msg.add_attachment(data, maintype="application", subtype="pdf",
                                filename=p.name)
+        elif p.suffix in (".xlsx", ".xlsm"):
+            msg.add_attachment(
+                data, maintype="application",
+                subtype="vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                filename=p.name)
         elif p.suffix == ".csv":
             msg.add_attachment(data, maintype="text", subtype="csv", filename=p.name)
         else:

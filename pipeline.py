@@ -268,6 +268,14 @@ def run(args) -> tuple[int, list[str], dict]:
             say(f"  tracking {tr.tracked_tickers} tickers")
             if tr.excel_path:
                 say(f"  workbook: {tr.excel_path}")
+                ctx["tracker_excel"] = tr.excel_path
+            ctx["tracker_stats"] = {
+                "new_observations": tr.new_observations,
+                "tracked_tickers": tr.tracked_tickers,
+                "total_rows": len(tr.observations),
+                "days": int(tr.observations["obs_date"].nunique())
+                        if not tr.observations.empty else 0,
+            }
         except Exception as exc:                               # noqa: BLE001
             say(f"  tracker failed ({type(exc).__name__}: {exc}) — continuing")
 
@@ -362,11 +370,23 @@ def run(args) -> tuple[int, list[str], dict]:
         text = bk.to_text(b, regime_desc=reg.description)
         if news_notes:
             text += "\n\nFlags:\n" + "\n".join(f"- {n}" for n in news_notes[:6])
+
+        # Daily diary summary, if the tracker ran
+        ts = ctx.get("tracker_stats")
+        if ts:
+            text += (f"\n\n_Diary: {ts['total_rows']} observations over "
+                     f"{ts['days']} days, tracking {ts['tracked_tickers']} tickers._")
+
+        send = dict(written)
+        xl = ctx.get("tracker_excel")
+        if xl and Path(xl).exists():
+            send["xlsx"] = Path(xl)
+
         res = notify.dispatch(
             subject=f"SwingScope {stamp:%d %b} — {b.actual_size} picks "
                     f"[{reg.state.replace('_', ' ')}]",
             html_body=html, text_body=text,
-            attachments=written, channels=args.channels,
+            attachments=send, channels=args.channels,
         )
         say(f"  {res if res else 'no channels configured'}")
     else:

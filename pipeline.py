@@ -73,25 +73,19 @@ REPORT_DIR = Path(os.environ.get("SWINGSCOPE_REPORTS", "reports"))
 
 
 def _fetch(tickers: tuple[str, ...], period: str = "1y") -> dict[str, pd.DataFrame]:
-    if not tickers:
-        return {}
-    raw = yf.download(list(tickers), period=period, interval="1d", auto_adjust=True,
-                      progress=False, group_by="ticker", threads=True)
-    out: dict[str, pd.DataFrame] = {}
-    if raw is None or raw.empty:
-        return out
-    for t in tickers:
-        try:
-            df = raw[t].copy() if isinstance(raw.columns, pd.MultiIndex) else raw.copy()
-        except (KeyError, IndexError):
-            continue
-        df = df.dropna(how="all")
-        if df.empty or len(df) < 60:
-            continue
-        df.columns = [str(c).title() for c in df.columns]
-        if {"Open", "High", "Low", "Close", "Volume"}.issubset(df.columns):
-            out[t] = df
-    return out
+    """Fetch OHLCV via the multi-source layer.
+
+    Primary is yfinance; if it returns too little, the layer falls back to
+    reconstructing from cached NSE bhavcopies. Thirteen modules previously
+    depended on yfinance alone, which made an unsupported third-party scraper
+    a single point of failure for the entire system.
+    """
+    res = dsrc.fetch(tickers, period=period, min_bars=60)
+    if res.fallback_used:
+        print(f"  DATA SOURCE FALLBACK: {res.summary()}")
+        for w in res.warnings[:3]:
+            print(f"    ! {w}")
+    return res.frames
 
 
 def _sectors(tickers: list[str]) -> dict[str, str]:

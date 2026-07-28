@@ -1,0 +1,89 @@
+name: Fundamentals snapshot
+
+# Monthly. This is the only honest route to point-in-time fundamentals without
+# paying for them: record what is visible today, dated today, and let the
+# series accumulate. In two years the archive holds two years of data that was
+# genuinely knowable at the time.
+#
+# 1st of each month, 05:00 UTC.
+on:
+  schedule:
+    - cron: '0 5 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Snapshot fundamentals
+        run: |
+          python - <<'PY'
+          import sys, types
+          f = types.ModuleType("streamlit")
+          def _p(*a, **k):
+              return a[0] if (a and callable(a[0])) else (lambda fn: fn)
+          f.cache_data = _p; f.cache_resource = _p; f.secrets = {}
+          sys.modules["streamlit"] = f
+
+          import fundamentals as fund
+          import universe as uni
+
+          res = uni.fetch_index_constituents("Nifty 500")
+          tickers = res.tickers[:200]
+          print(f"Snapshotting {len(tickers)} tickers "
+                f"({'live' if res.is_live else 'cached'} universe)")
+
+          snap = fund.fetch_universe(
+              tickers,
+              progress=lambda i, n, t: print(f"  {i}/{n} {t}", flush=True)
+                      if i % 25 == 0 else None,
+          )
+          print(f"\nRetrieved {snap.n_retrieved}/{snap.n_requested} "
+                f"({snap.coverage:.0%})")
+          if snap.failures:
+              print(f"Failed: {len(snap.failures)} tickers")
+
+          added, total = fund.archive(snap)
+          print(f"Archived +{added} rows, {total} total")
+
+          st = fund.archive_status()
+          print(f"\nArchive: {st['snapshots']} snapshots over "
+                f"{st['span_days']} days")
+          print(f"  {st['note']}")
+          PY
+        continue-on-error: true
+
+      - name: Commit archive
+        run: |
+          git config user.name  "swingscope-bot"
+          git config user.email "actions@github.com"
+          git add fundamentals_archive.csv || true
+          git diff --staged --quiet || git commit -m "Fundamentals snapshot $(date +%F)"
+          git push || true
+
+      - name: Alert on failure
+        if: failure()
+        env:
+          TELEGRAM_TOKEN:   ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          curl -s -X POST \
+            "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            -d text="🔴 SwingScope fundamentals snapshot failed. The point-in-time archive has a gap this month." \
+            || true

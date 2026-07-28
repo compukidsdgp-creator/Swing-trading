@@ -232,11 +232,15 @@ def dispatch(
     if "email" in wanted:
         results["email"] = send_email(subject, html_body, text_body, attachments)
     if "telegram" in wanted:
+        # Prefer the tracker workbook — it carries the most information.
+        # Fall back to the PDF report, then the HTML.
+        # NOTE: guard against `attachments` being None before calling .get().
         doc = None
-        if attachments:
-            doc = attachments.get("pdf")
-        if doc is None:
-            doc = attachments.get("html")
+        for key in ("xlsx", "pdf", "html"):
+            cand = (attachments or {}).get(key)
+            if cand is not None:
+                doc = cand
+                break
         results["telegram"] = send_telegram(text_body, doc)
     if "whatsapp" in wanted:
         results["whatsapp"] = send_whatsapp(text_body)

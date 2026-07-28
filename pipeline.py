@@ -56,6 +56,7 @@ import bucket as bk          # noqa: E402
 import config                # noqa: E402
 import forward_log as flog   # noqa: E402
 import governance as gov    # noqa: E402
+import macro as mac         # noqa: E402
 import health               # noqa: E402
 import newsfeed              # noqa: E402
 import daily_tracker as dtrack  # noqa: E402
@@ -210,6 +211,34 @@ def run(args) -> tuple[int, list[str], dict]:
     say(f"  Tiers permitted: {', '.join(sorted(reg.allowed_tiers))}")
     ctx.update(regime_state=reg.state, regime_desc=reg.description,
                regime_pct=reg.pct_from_200dma, breadth=reg.breadth)
+
+    # --- Macro overlay ---
+    #
+    # Refines the gate; adds no signals. Momentum crashes cluster in
+    # high-volatility states, which the price-only gate cannot see. Macro can
+    # only TIGHTEN the regime, never loosen it — the cost of trading in a bad
+    # regime far exceeds the cost of missing a good one.
+    if not args.skip_macro:
+        try:
+            mkt = mac.fetch_market_series(period="2y")
+            mregime = mac.classify_macro(mkt)
+            combined = mac.combine_with_price_regime(reg.state, mregime)
+            ctx["macro"] = combined
+            say(f"  macro: vol={mregime.volatility_state} "
+                f"rate={mregime.rate_state} favourable={mregime.momentum_favourable} "
+                f"(confidence {mregime.confidence})")
+            if combined["downgraded"]:
+                say(f"  REGIME DOWNGRADED by macro: {reg.state} -> "
+                    f"{combined['combined_regime']}")
+                for r in combined["reasons"][:2]:
+                    say(f"    - {r}")
+                reg = rg.Regime(combined["combined_regime"],
+                                reg.above_200dma, reg.dma50_rising,
+                                reg.pct_from_200dma, reg.breadth)
+                ctx["regime_state"] = reg.state
+        except Exception as exc:                               # noqa: BLE001
+            say(f"  macro overlay unavailable ({type(exc).__name__}) — "
+                "continuing on price regime alone")
 
     # --- 4. Screener ---
     say("\n[4/10] Screener")
@@ -476,6 +505,8 @@ def main() -> int:
     p.add_argument("--no-balance", action="store_true",
                    help="take the top N by score instead of balancing tiers")
     p.add_argument("--skip-news", action="store_true")
+    p.add_argument("--skip-macro", action="store_true",
+                   help="skip the macro overlay on the regime gate")
     p.add_argument("--no-log", action="store_true")
     p.add_argument("--no-pdf", action="store_true")
     p.add_argument("--notify", action="store_true")

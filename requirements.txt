@@ -1,20 +1,26 @@
-# Pinned deliberately.
+# Minimum versions, not exact pins.
 #
-# yfinance breaks regularly when Yahoo changes its API, and pandas 3.0 altered
-# dtype-assignment behaviour in a way that already caused a bug here. Floating
-# versions mean an unattended workflow can fail one morning for reasons entirely
-# unrelated to your code.
+# An earlier attempt at exact pinning broke the deployment: the pins were
+# written from memory rather than measured, and named versions well behind what
+# the code actually runs on (yfinance 0.2.51 against the 1.5.2 it was built and
+# tested with — a major version apart).
 #
-# To upgrade: bump one line, run `python test_invariants.py 50`, and only then
-# commit. The CI workflow will confirm.
+# Lower bounds give most of the protection without that risk. They stop a
+# resolver installing something ancient, while letting Streamlit Cloud use the
+# versions it actually has available.
+#
+# If you do want exact pins later, generate them from a working deployment
+# rather than by hand:
+#     pip freeze > requirements.lock.txt
+# then verify with `python test_invariants.py 50` before committing.
 
-streamlit==1.41.1
-yfinance==0.2.51
-pandas==2.2.3
-numpy==1.26.4
-plotly==5.24.1
-requests==2.32.3
-openpyxl==3.1.5
+streamlit>=1.40
+yfinance>=1.0
+pandas>=2.2
+numpy>=1.26
+plotly>=5.20
+requests>=2.31
+openpyxl>=3.1
 
 # Optional — Paytm Money broker integration (read-only cost measurement).
 # NOT on PyPI; install from GitHub:

@@ -35,11 +35,40 @@ import data_quality as dq
 import forward_log as flog
 import sentiment as sent
 import report as rep
-import bhavcopy as bhav
-import broker as brk
 import bucket as bk
-import costs
-import horizon as hz
+
+
+# --------------------------------------------------------------------------
+# Optional modules.
+#
+# These power research and broker features that are not required for the core
+# app. Importing them at module scope means one missing file takes down the
+# whole deployment — which is exactly what happened when broker.py was absent.
+# Each is now optional; its section degrades to a clear message instead.
+# --------------------------------------------------------------------------
+def _optional(name):
+    try:
+        return __import__(name)
+    except Exception:
+        return None
+
+
+brk = _optional("broker")
+bhav = _optional("bhavcopy")
+costs = _optional("costs")
+hz = _optional("horizon")
+
+_MISSING = [n for n, m in (("broker", brk), ("bhavcopy", bhav),
+                           ("costs", costs), ("horizon", hz)) if m is None]
+
+
+def _unavailable(module, purpose):
+    st.warning(
+        f"**`{module}.py` is not present in this deployment.** {purpose}\n\n"
+        "Upload the file to your repository to enable this section. The rest of "
+        "the app is unaffected.",
+        icon="📦",
+    )
 
 st.set_page_config(
     page_title="SwingScope — NSE Swing Research",
@@ -194,8 +223,12 @@ def sidebar() -> dict:
         st.sidebar.error("Universe is empty — pick an index or add custom tickers.")
 
     max_scan = st.sidebar.slider(
-        "Cap universe size", 20, 300, min(120, max(20, len(tickers))), 10,
-        help="Streamlit's free tier struggles past ~130 tickers on a cold start.",
+        "Cap universe size", 20, 500, min(400, max(20, len(tickers))), 10,
+        help="Screen broadly, select narrowly. Gross spread measured 0.22% "
+             "across 150 long-history symbols against 0.87% across 400 — "
+             "filtering for long history selects large, efficiently-priced "
+             "companies where momentum works least well. Note the free "
+             "Streamlit tier slows noticeably past ~150 on a cold start.",
     )
     trim_method = st.sidebar.selectbox(
         "How to trim", ["liquidity", "random"], index=0,
@@ -1545,6 +1578,11 @@ def render_forward_log(cfg: dict, shortlist: pd.DataFrame) -> None:
 # Bhavcopy — free point-in-time data
 # --------------------------------------------------------------------------
 def render_bhavcopy() -> None:
+    if bhav is None:
+        st.subheader("Bhavcopy")
+        _unavailable("bhavcopy", "It provides free point-in-time NSE data going back to 1994.")
+        return
+
     st.subheader("NSE bhavcopy — free point-in-time data")
     st.caption(
         "I previously called survivorship bias, history depth and delivery data "
@@ -1681,6 +1719,11 @@ def render_bhavcopy() -> None:
 # True cost: tax + correlation
 # --------------------------------------------------------------------------
 def render_true_cost(cfg: dict) -> None:
+    if costs is None:
+        st.subheader("Costs")
+        _unavailable("costs", "It models capital gains tax and correlation-adjusted position sizing.")
+        return
+
     st.subheader("True cost: tax and correlation")
     st.caption(
         "Two costs the model never charged. **Tax:** India levies 20% on "
@@ -1801,6 +1844,11 @@ def render_true_cost(cfg: dict) -> None:
 # Horizon sweep — the highest-leverage analysis
 # --------------------------------------------------------------------------
 def render_horizon(cfg: dict) -> None:
+    if hz is None:
+        st.subheader("Horizon")
+        _unavailable("horizon", "It sweeps holding periods to find the economically viable band.")
+        return
+
     st.subheader("Holding period sweep")
     st.caption(
         "The single largest lever available. At 15 days the edge nets to roughly "
@@ -1951,6 +1999,11 @@ def render_horizon(cfg: dict) -> None:
 # Broker tab — measured costs vs assumed costs
 # --------------------------------------------------------------------------
 def render_broker() -> None:
+    if brk is None:
+        st.subheader("Broker")
+        _unavailable("broker", "It reads your actual fills to measure real transaction costs.")
+        return
+
     st.subheader("Broker: measured transaction costs")
     st.caption(
         "The strategy rests on a number that was **estimated, not measured** — round-trip "
@@ -2203,6 +2256,13 @@ def main() -> None:
         f"Universe: **{cfg['universe_name']}** ({len(cfg['tickers'])} tickers, {provenance}) · "
         f"Data: yfinance EOD · Generated {dt.datetime.now():%d %b %Y %H:%M}"
     )
+
+    if _MISSING:
+        st.caption(
+            "Optional modules not found: "
+            + ", ".join(f"`{m}.py`" for m in _MISSING)
+            + " — those sections are disabled. Everything else works normally."
+        )
 
     st.info(
         "**EOD data.** Prices are end-of-day, not live. Confirm every level on your "

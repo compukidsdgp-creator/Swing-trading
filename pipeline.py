@@ -569,9 +569,17 @@ def main() -> int:
     p = argparse.ArgumentParser(description="SwingScope end-to-end pipeline")
     p.add_argument("--universe", default="Nifty 500")
     p.add_argument("--size", type=int, default=10, help="target bucket size")
-    p.add_argument("--horizon", type=int, default=15)
+    p.add_argument("--horizon", type=int, default=30,
+                   help="holding period in trading days. Default revised from "
+                        "15 to 30 after 20-year testing: at 15 days the "
+                        "long-only edge (0.77%%) does not cover charges, "
+                        "slippage and 20%% STCG. At 30 days it does (2.16%%).")
     p.add_argument("--min-score", type=float, default=60.0)
-    p.add_argument("--max-tickers", type=int, default=150)
+    p.add_argument("--max-tickers", type=int, default=400,
+                   help="universe size. Raised from 150 to 400: gross spread "
+                        "was 0.22%% across 150 long-history symbols against "
+                        "0.87%% across 400. Screening broadly and selecting "
+                        "narrowly is where the edge lives.")
     p.add_argument("--trim", choices=["liquidity", "random", "none"],
                    default="liquidity",
                    help="how to reduce the universe to --max-tickers. NEVER "

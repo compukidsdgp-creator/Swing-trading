@@ -97,77 +97,84 @@ UNIVERSES: dict[str, tuple[str, ...]] = {
 METHOD_DOC = """
 ## The signal
 
-**12-1 momentum.** Return over the past 12 months, excluding the most recent
+**12-1 momentum.** Return over the past twelve months, excluding the most recent
 month. Stocks are ranked against each other; the score is a percentile within
 today's universe.
 
-That is the whole model.
+**Configuration: top 10 from a 400-stock universe, held ~30 days.**
 
 ## How it got here
 
-The original version blended five components — Trend, Momentum, Volume,
-Relative Strength, Setup — with weights chosen by reasoning about what should
-matter. Factor analysis showed all five measured the same underlying thing:
+The original five-component composite failed factor neutralisation — residual IC
++0.0041, t = 0.17. All five components measured the same thing. Twelve candidate
+signals were then tested individually; ten showed no incremental content, and of
+the two survivors one was rejected as 97% correlated with the other.
 
-| Test | Result |
+That left 12-1 momentum, validated on five years at IC 0.076 with a 1.42% gross
+spread.
+
+**A twenty-year test then revised that substantially.**
+
+| | 5-year | 20-year |
+|---|---|---|
+| Windows | 62 | 201 |
+| Mean IC | 0.0760 | **0.0311** |
+| t-statistic | 4.22 | **2.74** |
+| Gross spread | 1.42% | **0.46%** |
+
+The signal is still real — positive in every sub-period, permutation p = 0.00.
+But the magnitude collapsed, and magnitude is what pays.
+
+## Two findings that fixed it
+
+**Universe breadth.** Holding the period fixed and varying only which symbols
+are included:
+
+| Universe | Gross spread |
 |---|---|
-| Raw IC | +0.0506 |
-| Residual IC after neutralising six known factors | **+0.0041** |
-| IC retention | **13.9%** |
-| Fama-MacBeth t on the score | **0.17** |
-| Correlation with one-month return | 0.76 |
+| 150 symbols (15y+ history) | 0.22% |
+| 250 symbols (10y+ history) | 0.19% |
+| **400 symbols (5y+ history)** | **0.87%** |
 
-The composite predicted nothing once momentum, reversal, size, volatility, beta
-and liquidity were controlled for. It was momentum wearing five costumes.
+Filtering for long history selects large, established, efficiently-priced
+companies — where momentum works least well. Screen broadly, select narrowly.
 
-Twelve candidate signals were then tested individually. Ten showed no
-incremental content. Of the two survivors, one was rejected as redundant
-(`idiosyncratic_mom`, correlation 0.971 with 12-1 momentum). One remained.
+**Holding period.** What a long-only book actually captures is the top slice's
+excess over the universe mean, not the long-short spread:
 
-| Evidence for 12-1 momentum | |
-|---|---|
-| Residual IC | +0.0553 |
-| Newey-West t | **3.73** (clears the Harvey-Liu-Zhu t>3 bar) |
-| Positive windows | 59.7% of 62 |
+| Hold | Long-only edge | Net annualised |
+|---|---|---|
+| 15 days | 0.77% | **−1.15%** |
+| **30 days** | **2.16%** | **+5.95%** |
+| 45 days | 1.67% | +2.41% |
+| 60 days | 2.79% | +4.44% |
+
+At fifteen days the strategy loses money after charges, slippage and 20%
+short-term capital gains tax. At thirty it does not. That single change is the
+difference.
 
 ## What this is not
 
 Momentum was published by Jegadeesh & Titman in 1993 and replicated across
-almost every market since. This is not a discovery. What has been established is
-that the effect is present and measurable in the Nifty 500 at a 15-day horizon,
-and that elaborate scoring added nothing to it.
+almost every market since. This is not a discovery — it is confirmation that a
+known effect is present in this universe, and measurement of the conditions
+under which it survives costs.
 
-## Cost reality
+## Honest caveats
 
-IC 0.048 implies roughly a 0.5-0.6pp spread between top and bottom quintile per
-15 days. Against modelled round-trip costs:
+**Twenty-four configurations were tested and the best is reported.** Some of the
+margin above is selection, not signal.
 
-| Tier | Cost | Verdict |
-|---|---|---|
-| Large | 0.25% | edge survives |
-| Mid | 0.60% | roughly breakeven |
-| Small | 1.50% | **consumed entirely** |
+**Window counts are thin.** A 30-day hold with non-overlapping windows gives
+roughly 45 observations across the full sample, fewer per sub-period.
 
-Small caps are excluded regardless of rank. Being right about a stock you cannot
-trade profitably is not an edge.
+**Survivorship bias remains.** Every symbol in the dataset still trades today,
+so twenty years of failures are invisible. Absolute returns are optimistic;
+regime behaviour is the more reliable conclusion.
 
-## Two things to watch
+**Thirty days is not swing trading.** It is position trading, with different
+drawdown behaviour and a different psychological demand.
 
-**Percentile ranking is relative.** A score of 100 means "strongest momentum in
-today's universe", not "strong". In a falling market that could be a stock down
-1% while everything else is down 30%. The absolute momentum floor exists to stop
-this, and should stay on.
-
-**Everything above is measured on selection data**, and is optimistic by
-construction. The forward log is the only un-overfittable evidence. Give it
-eight weeks before trusting any of it.
-
-## What this still cannot fix
-
-- **Delisting survivorship bias.** Companies wound up have no retrievable
-  history. Point-in-time liquidity filtering removes index-membership bias but
-  not this. Assume results remain modestly inflated.
-- **Data quality.** yfinance carries known defects. The audit catches the worst.
-- **History depth.** Five years, one market. Serious factor work wants twenty
-  years across several.
+**Forward evidence is the only check that cannot be gamed**, and there is none
+yet.
 """

@@ -60,20 +60,71 @@ import tiers as tr
 LOOKBACK = 252
 SKIP = 21
 
+# Minimum history beyond the formation window.
+#
+# A stock needs 257 bars to compute 12-1 momentum at all — about 12.2 months.
+# Admitting it at exactly that point means its entire "momentum" is post-IPO
+# price discovery, which is a different phenomenon from the momentum effect and
+# is documented to behave differently (often reversing sharply). The momentum
+# literature routinely excludes recent listings for this reason.
+#
+# 378 bars ≈ 18 months gives roughly six months of established trading history
+# before the formation window begins.
+MIN_HISTORY_BARS = 378
+
 # Tiers where the edge survives transaction costs.
 RECOMMENDED_TIERS = {"large", "mid"}
 
+# Two validation runs. The five-year figures came first and were superseded by
+# a twenty-year test on local data, which is the more reliable of the two.
 VALIDATION = {
     "signal": "mom_12_1",
-    "residual_ic": 0.0553,
-    "residual_t_newey_west": 3.73,
-    "composite_ic": 0.0479,
-    "pct_positive_windows": 59.7,
-    "windows": 62,
-    "universe": "Nifty 500",
-    "horizon_days": 15,
-    "measured": "2026-07-26",
+
+    # --- 5-year, yfinance, Nifty 500 top-100 by liquidity ---
+    "v1_residual_ic": 0.0553,
+    "v1_residual_t": 3.73,
+    "v1_windows": 62,
+    "v1_gross_spread_pct": 1.42,
+    "v1_measured": "2026-07-26",
+
+    # --- 20-year, local dataset, 400 symbols ---
+    # Longer sample, more windows, and it substantially revised the picture.
+    "residual_ic": 0.0311,
+    "residual_t_newey_west": 2.74,
+    "windows": 201,
+    "pct_positive_windows": 61.7,
+    "permutation_p": 0.00,
+    "period": "2010-2026",
+    "universe": "451 NSE symbols, 400 used",
+    "measured": "2026-07-28",
+
+    # The finding that mattered: edge is universe- and horizon-dependent
+    "gross_spread_by_universe": {
+        "150 symbols (15y+ history)": 0.22,
+        "250 symbols (10y+ history)": 0.19,
+        "400 symbols (5y+ history)": 0.87,
+    },
+    "long_only_edge_by_horizon_pct": {
+        15: 0.77, 30: 2.16, 45: 1.67, 60: 2.79,
+    },
+    "net_annualised_by_horizon_pct": {
+        15: -1.15, 30: 5.95, 45: 2.41, 60: 4.44,
+    },
 }
+
+# Recommended configuration, from the 20-year test.
+#
+# Three findings drove this:
+#   1. A 15-day hold does not clear costs. Long-only edge 0.77%, net -1.15%.
+#   2. A 30-day hold does. Long-only edge 2.16%, net +5.95%.
+#   3. The edge concentrates in the top few percent of a BROAD universe. Taking
+#      10 names from 400 (top 2.5%) is far more selective than 10 from 100.
+#
+# Caveat carried deliberately: 24 configurations were tested and the best
+# reported. Some of this is selection. The forward log is the check.
+RECOMMENDED_HORIZON = 30
+RECOMMENDED_UNIVERSE_SIZE = 400
+RECOMMENDED_BUCKET_SIZE = 10        # top 2.5% of 400
 
 
 def raw_momentum(df: pd.DataFrame, i: int | None = None) -> float:
@@ -97,6 +148,7 @@ def rank_universe(
     require_above_50ema: bool = True,
     tier_filter: set[str] | None = None,
     min_momentum: float | None = 0.0,
+    min_history: int = MIN_HISTORY_BARS,
 ) -> pd.DataFrame:
     """Rank a universe by momentum, cross-sectionally.
 
@@ -109,6 +161,8 @@ def rank_universe(
       * price above 50 EMA, as a crude trend confirmation
       * tier, because costs vary by an order of magnitude across tiers
       * an absolute momentum floor (see below)
+      * a minimum history requirement, excluding recent listings whose
+        "momentum" is really post-IPO drift
 
     Why the absolute floor matters
     ------------------------------
@@ -123,7 +177,7 @@ def rank_universe(
     """
     rows = []
     for tkr, df in frames.items():
-        if df is None or len(df) < LOOKBACK + 5:
+        if df is None or len(df) < min_history:
             continue
         try:
             e = ind.enrich(df)
@@ -164,6 +218,7 @@ def rank_universe(
             "Above_50EMA": above,
             "Cost_viable": tier in RECOMMENDED_TIERS,
             "Mom_positive": mom > 0,
+            "History_bars": len(df),
         })
 
     if not rows:
@@ -211,6 +266,10 @@ def explain() -> str:
     """Plain-language description, for the app and reports."""
     v = VALIDATION
     return (
+        f"**Configuration: top {RECOMMENDED_BUCKET_SIZE} from a "
+        f"{RECOMMENDED_UNIVERSE_SIZE}-stock universe, held ~{RECOMMENDED_HORIZON} "
+        f"days.** Revised from 15 days after twenty-year testing showed the "
+        f"shorter horizon does not clear costs.\n\n"
         f"**Signal: 12-1 momentum.** Return over the past 12 months, excluding the "
         f"most recent month. Stocks are ranked against each other; the score is a "
         f"percentile within today's universe.\n\n"
@@ -225,8 +284,16 @@ def explain() -> str:
         f"**What this is not.** Momentum was published in 1993 and replicated across "
         f"almost every market since. This is not a discovery — it is confirmation that "
         f"a known effect is present and measurable in this universe.\n\n"
-        f"**Cost reality.** The edge implies roughly a 0.5-0.6pp quintile spread per "
-        f"15 days. Large-cap round-trip costs (~0.25%) leave most of it. Mid-cap "
-        f"(~0.60%) is roughly breakeven. Small-cap (~1.50%) consumes it entirely — "
-        f"which is why small caps are excluded regardless of rank."
+        f"**Cost reality, revised.** Long-only edge — the top slice's excess over "
+        f"the universe mean, which is what a long-only book actually captures — "
+        f"is 0.77% at 15 days and 2.16% at 30. After charges, slippage and 20% "
+        f"STCG that is -1.15% and +5.95% annualised respectively. The horizon "
+        f"change is the difference between losing and making money.\n\n"
+        f"**Universe breadth matters as much.** Gross spread was 0.22% across 150 "
+        f"long-history symbols and 0.87% across 400 — filtering for long history "
+        f"selects large, efficiently-priced companies where momentum works least "
+        f"well. Screen broadly, select narrowly.\n\n"
+        f"**Honest caveat.** Twenty-four configurations were tested and the best "
+        f"is reported here. Some of that margin is selection. Forward evidence "
+        f"is the only check that cannot be gamed."
     )

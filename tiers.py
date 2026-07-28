@@ -40,7 +40,8 @@ TIER_PARAMS = {
         "min_turnover_cr": 50.0,
         "max_position_pct": 25.0,  # can size up; you can always exit
         "max_pct_of_adv": 5.0,
-        "est_cost_pct": 0.25,      # round-trip incl. spread
+        "est_cost_pct": 0.36,      # 0.26% statutory + 0.10% slippage round trip
+        "slippage_pct": 0.10,
     },
     "mid": {
         "rsi_band": (50, 72),
@@ -49,7 +50,8 @@ TIER_PARAMS = {
         "min_turnover_cr": 25.0,
         "max_position_pct": 15.0,
         "max_pct_of_adv": 3.0,
-        "est_cost_pct": 0.60,
+        "est_cost_pct": 0.56,      # 0.26% statutory + 0.30% slippage round trip
+        "slippage_pct": 0.30,
     },
     "small": {
         "rsi_band": (55, 80),      # smallcap trends stay hot for weeks
@@ -58,7 +60,8 @@ TIER_PARAMS = {
         "min_turnover_cr": 10.0,
         "max_position_pct": 8.0,   # exit risk, not entry risk, caps this
         "max_pct_of_adv": 2.0,
-        "est_cost_pct": 1.50,      # spread alone can be 1%+
+        "est_cost_pct": 0.96,      # 0.26% statutory + 0.70% slippage round trip
+        "slippage_pct": 0.70,
     },
 }
 
@@ -121,7 +124,13 @@ def position_limits(tier: str, capital: float, price: float,
 
 
 def net_expected_r(gross_r: float, tier: str, stop_pct: float) -> float:
-    """Expected R after transaction costs.
+    """Expected R after transaction costs INCLUDING slippage.
+
+    Note: est_cost_pct now decomposes into statutory charges (0.26%, identical
+    across tiers because STT and stamp duty are ad valorem) plus tier-specific
+    slippage. Slippage is the part that actually varies — spreads and market
+    impact are what separate a large cap from a small one, not the taxes.
+
 
     A 2R smallcap setup with a 6% stop gives up ~0.25R to costs. The same setup
     in a largecap gives up ~0.06R. Ranking without this systematically

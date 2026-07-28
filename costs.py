@@ -44,6 +44,33 @@ LTCG_RATE = 0.125           # > 12 months
 LTCG_EXEMPTION = 125_000    # annual exemption on long-term gains
 STCG_HOLDING_DAYS = 365
 
+# --------------------------------------------------------------------------
+# Slippage
+#
+# Charges are known exactly from statute. Slippage is not — it is the gap
+# between the price you expected and the price you got, and it was entirely
+# absent from this model until now. A backtest filling at the next bar's open
+# implicitly assumes zero slippage, which is never true.
+#
+# Two components:
+#   spread   — half the bid-ask, paid on each leg
+#   impact   — price movement caused by your own order
+#
+# Figures below are conservative estimates by tier. Replace them with measured
+# values from broker.py once real fills exist; an estimate is a placeholder,
+# not a measurement.
+# --------------------------------------------------------------------------
+SLIPPAGE_BY_TIER = {
+    "large": 0.0005,        # 0.05% per leg — tight spreads, deep books
+    "mid":   0.0015,        # 0.15% per leg
+    "small": 0.0035,        # 0.35% per leg — wide spreads, thin books
+}
+
+# Slippage worsens when your order is large relative to daily volume. Above
+# roughly 1% of ADV, impact starts to dominate the spread.
+IMPACT_ADV_THRESHOLD = 0.01
+IMPACT_MULTIPLIER = 2.0
+
 # Statutory charges on delivery trades, as fractions of turnover
 STT_DELIVERY = 0.001        # 0.1% on both buy and sell
 STAMP_DUTY_BUY = 0.000015   # 0.015% on buy only
@@ -62,6 +89,8 @@ class CostBreakdown:
     gst: float = 0.0
     total_charges: float = 0.0
     charges_pct: float = 0.0
+    slippage: float = 0.0
+    slippage_pct: float = 0.0
     tax: float = 0.0
     tax_pct: float = 0.0
     all_in_pct: float = 0.0
@@ -72,6 +101,32 @@ class CostBreakdown:
         return {k: round(v, 4) for k, v in self.__dict__.items()}
 
 
+def slippage_cost(turnover: float, tier: str = "mid",
+                  *, adv_value: float | None = None) -> tuple[float, float]:
+    """Estimated slippage in rupees and as a fraction, for one round trip.
+
+    Args:
+        turnover: buy value + sell value.
+        adv_value: average daily traded value. When the order is large relative
+                   to it, market impact is scaled up.
+
+    Returns (rupees, fraction_of_buy_value).
+    """
+    rate = SLIPPAGE_BY_TIER.get(tier, SLIPPAGE_BY_TIER["mid"])
+
+    # Impact scaling: an order that is a meaningful share of daily volume moves
+    # the price against itself.
+    if adv_value and adv_value > 0:
+        order_value = turnover / 2
+        participation = order_value / adv_value
+        if participation > IMPACT_ADV_THRESHOLD:
+            excess = participation / IMPACT_ADV_THRESHOLD
+            rate *= 1 + (excess - 1) * IMPACT_MULTIPLIER
+
+    total = turnover * rate
+    return total, rate
+
+
 def round_trip_cost(
     entry: float, exit_price: float, qty: int,
     *,
@@ -79,8 +134,11 @@ def round_trip_cost(
     brokerage_pct_cap: float = 0.0003,      # lower of ₹20 or 0.03%
     holding_days: int = 15,
     apply_tax: bool = True,
+    tier: str = "mid",
+    adv_value: float | None = None,
+    include_slippage: bool = True,
 ) -> CostBreakdown:
-    """Full round-trip cost including statutory charges and capital gains tax."""
+    """Full round-trip cost: statutory charges, slippage and capital gains tax."""
     b = CostBreakdown()
     buy_val = entry * qty
     sell_val = exit_price * qty
@@ -98,8 +156,13 @@ def round_trip_cost(
     b.sebi = turnover * SEBI_CHARGES
     b.gst = (b.brokerage + b.exchange + b.sebi) * GST_ON_CHARGES
 
+    if include_slippage:
+        slip_rs, slip_rate = slippage_cost(turnover, tier, adv_value=adv_value)
+        b.slippage = slip_rs
+        b.slippage_pct = slip_rs / buy_val * 100 if buy_val else 0.0
+
     b.total_charges = (b.brokerage + b.stt + b.stamp_duty +
-                       b.exchange + b.sebi + b.gst)
+                       b.exchange + b.sebi + b.gst + b.slippage)
     b.charges_pct = b.total_charges / buy_val * 100 if buy_val else 0.0
 
     # Tax applies only to a net gain after charges. Losses generate no tax
@@ -117,7 +180,9 @@ def round_trip_cost(
 
 
 def edge_after_tax(gross_edge_pct: float, *, win_rate: float = 0.55,
-                   charges_pct: float = 0.35, holding_days: int = 15) -> dict:
+                   charges_pct: float = 0.35, holding_days: int = 15,
+                   slippage_pct: float | None = None,
+                   tier: str | None = None) -> dict:
     """What survives of a stated edge once charges and tax are applied.
 
     The asymmetry that matters: charges are paid on every trade, tax only on
@@ -125,6 +190,12 @@ def edge_after_tax(gross_edge_pct: float, *, win_rate: float = 0.55,
     than the headline tax rate suggests.
     """
     rate = STCG_RATE if holding_days <= STCG_HOLDING_DAYS else LTCG_RATE
+
+    # Slippage is paid on both legs and is separate from statutory charges.
+    if slippage_pct is None and tier:
+        slippage_pct = SLIPPAGE_BY_TIER.get(tier, SLIPPAGE_BY_TIER["mid"]) * 2 * 100
+    slippage_pct = slippage_pct or 0.0
+    charges_pct = charges_pct + slippage_pct
 
     # Decompose the edge into an average win and average loss consistent with
     # the stated win rate, assuming a 1.5:1 payoff.
@@ -142,6 +213,7 @@ def edge_after_tax(gross_edge_pct: float, *, win_rate: float = 0.55,
     return {
         "gross_edge_pct": round(gross_per_trade, 4),
         "charges_pct": round(charges_pct, 4),
+        "slippage_pct": round(slippage_pct, 4),
         "tax_pct": round(tax_per_trade, 4),
         "net_edge_pct": round(net, 4),
         "retention_pct": round(net / gross_per_trade * 100, 1) if gross_per_trade else 0.0,

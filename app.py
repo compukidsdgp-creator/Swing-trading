@@ -509,17 +509,77 @@ def render_screener(cfg: dict) -> pd.DataFrame:
 
     # Apply filters
     lo, hi = cfg["rsi_band"]
-    mask = (
-        (res["Turnover_Cr"] >= cfg["min_turnover"])
-        & (res["RSI"].between(lo, hi))
-        & (res["Score"] >= cfg["min_score"])
-    )
+
+    # Each filter evaluated separately, so it is visible which one is binding.
+    # A chain of individually reasonable filters can multiply out to zero, and
+    # "nothing passed" without attribution leaves you guessing.
+    checks = {
+        f"turnover ≥ ₹{cfg['min_turnover']:.0f} Cr": res["Turnover_Cr"] >= cfg["min_turnover"],
+        f"RSI in {lo}–{hi}": res["RSI"].between(lo, hi),
+        f"score ≥ {cfg['min_score']}": res["Score"] >= cfg["min_score"],
+    }
     if cfg["require_uptrend"]:
-        mask &= res["Above_50EMA"]
+        checks["price > 50 EMA"] = res["Above_50EMA"]
     if respect_regime:
-        mask &= res["Tier"].isin(reg.allowed_tiers)
+        checks[f"tier in {sorted(reg.allowed_tiers)}"] = res["Tier"].isin(reg.allowed_tiers)
+
+    mask = pd.Series(True, index=res.index)
+    for m in checks.values():
+        mask &= m
 
     filtered = res[mask].sort_values("Score", ascending=False).reset_index(drop=True)
+
+    # Attribution: how many survive each filter alone, and cumulatively
+    if filtered.empty and not res.empty:
+        rows, running = [], pd.Series(True, index=res.index)
+        for label, m in checks.items():
+            running = running & m
+            rows.append({
+                "filter": label,
+                "passes_alone": int(m.sum()),
+                "pct_alone": round(m.mean() * 100, 1),
+                "cumulative": int(running.sum()),
+            })
+        attrib = pd.DataFrame(rows)
+
+        st.error(
+            f"**Nothing passed.** {len(res)} stocks scored, 0 survived the filter "
+            "chain. The table below shows where they were lost."
+        )
+        st.dataframe(attrib, hide_index=True, use_container_width=True)
+
+        # Identify the binding constraint: the step that removed the most
+        binding = None
+        prev = len(res)
+        worst_drop = -1
+        for _, r in attrib.iterrows():
+            drop = prev - r["cumulative"]
+            if drop > worst_drop:
+                worst_drop, binding = drop, r["filter"]
+            prev = r["cumulative"]
+
+        strictest = attrib.loc[attrib["passes_alone"].idxmin()]
+        st.warning(
+            f"**Binding constraint: `{binding}`** — it removed {worst_drop} stocks.\n\n"
+            f"The strictest filter overall is `{strictest['filter']}`, which only "
+            f"{strictest['passes_alone']} of {len(res)} stocks "
+            f"({strictest['pct_alone']}%) pass on its own."
+        )
+
+        if respect_regime and "tier" in str(binding):
+            st.info(
+                f"The regime is **{reg.state.replace('_', ' ')}**, which permits only "
+                f"{', '.join(sorted(reg.allowed_tiers))} caps. In a hostile regime, "
+                "zero picks is the intended output — not a fault to be filtered "
+                "around.", icon="🛡️",
+            )
+        else:
+            st.info(
+                "Each filter is individually reasonable; they multiply out to zero "
+                "together. Relax the binding one first rather than loosening "
+                "everything at once.", icon="💡",
+            )
+        return pd.DataFrame()
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Scanned", len(res))

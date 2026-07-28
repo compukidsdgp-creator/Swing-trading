@@ -1,5 +1,5 @@
 ==================================================================
-SwingScope pipeline — 2026-07-28 03:02
+SwingScope pipeline — 2026-07-28 03:10
 ==================================================================
 
 [1/10] Universe
@@ -30,7 +30,7 @@ SwingScope pipeline — 2026-07-28 03:02
   skipped
 
 [6b] Daily tracker
-  +3 observations, +30 price rows
+  +0 observations, +0 price rows
   tracking 3 tickers
   workbook: reports/daily_tracker.xlsx
 
@@ -45,7 +45,7 @@ SwingScope pipeline — 2026-07-28 03:02
   wrote html: reports/report_20260728.html
 
 [10/10] Notify
-  skipped (pass --notify to enable)
+  {'telegram': True}
 
 ------------------------------------------------------------------
 Analytical output only. Not investment advice. No orders were placed.

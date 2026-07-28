@@ -237,7 +237,8 @@ def run(args) -> tuple[int, list[str], dict]:
     # --- 4. Screener ---
     say("\n[4/10] Screener")
     if args.model == "momentum":
-        say("  model: 12-1 momentum (residual IC +0.055, Newey-West t = 3.73)")
+        say("  model: 12-1 momentum (20y: IC +0.031, Newey-West t = 2.74, "
+            "201 windows)")
         tier_filter = momo.RECOMMENDED_TIERS if args.exclude_small else None
         ranked = momo.rank_universe(
             data, bench,
@@ -253,8 +254,26 @@ def run(args) -> tuple[int, list[str], dict]:
                 "positive 12-month momentum — zero picks is the correct answer.")
             return 1, log_lines, ctx
         say(f"  ranked {len(ranked)} stocks by cross-sectional momentum")
+
+        # Selectivity is where the edge lives. The 20-year test measured a
+        # 1.63% spread taking the top 5% of a large ranked set, against 0.56%
+        # for the top 20%. Pre-filters that shrink the universe before
+        # selection quietly convert the former into the latter.
+        if len(ranked) > 0:
+            selectivity = args.size / len(ranked)
+            say(f"  selectivity: {args.size} of {len(ranked)} = "
+                f"top {selectivity:.1%}")
+            if selectivity > 0.15:
+                say(f"    ! Taking the top {selectivity:.0%} — the validated "
+                    "configuration was the top 5%. Filters have cut the "
+                    "universe before selection, so this is closer to the "
+                    "quintile config (0.56% spread) than the concentrated one "
+                    "(1.63%).")
+                say("    Fix: raise --max-tickers, or relax --min-score / the "
+                    "momentum floor so more names reach the ranking stage.")
         if args.exclude_small:
-            say("  small caps excluded — ~1.5% round-trip cost exceeds the ~0.5pp edge")
+            say("  small caps excluded — 0.96% round-trip cost (0.26% charges + "
+                "0.70% slippage)")
     else:
         say("  model: composite v1  ** FAILED VALIDATION "
             "(residual IC +0.004, t = 0.17) **")
@@ -611,11 +630,11 @@ def main() -> int:
                    help="acknowledge daily cadence (not recommended for 15-20d holds)")
     p.add_argument("--model", choices=["momentum", "composite_v1"], default="momentum",
                    help="ranking signal. momentum = 12-1 momentum, validated at "
-                        "residual IC +0.055, t = 3.73. composite_v1 failed validation "
+                        "20-year residual IC +0.031, t = 2.74. composite_v1 failed validation "
                         "(residual IC +0.004, t = 0.17) and is kept only for comparison.")
     p.add_argument("--exclude-small", action="store_true", default=True,
                    help="exclude small caps, where ~1.5%% round-trip costs exceed the "
-                        "~0.5pp edge. On by default.")
+                        "long-only edge. On by default.")
     p.add_argument("--include-small", dest="exclude_small", action="store_false",
                    help="override the cost-viability exclusion")
     p.add_argument("--backtest-ic", type=float, default=None,

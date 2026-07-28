@@ -1,5 +1,5 @@
 ==================================================================
-SwingScope pipeline — 2026-07-28 03:38
+SwingScope pipeline — 2026-07-28 06:09
 ==================================================================
 
 [1/10] Universe
@@ -7,46 +7,7 @@ SwingScope pipeline — 2026-07-28 03:38
 
 [2/10] Price data
   fetch period: 2y
-  fetched 449 of 450 candidates
-  universe: 150 tickers — top 150 by 20-day traded value
-  150 of 150 tickers returned usable history
-
-[3/10] Regime
-  RISK_OFF — Nifty -3.3% vs 200DMA, breadth 56%
-  Tiers permitted: large
-
-[4/10] Screener
-  model: 12-1 momentum (residual IC +0.055, Newey-West t = 3.73)
-  ranked 48 stocks by cross-sectional momentum
-  small caps excluded — ~1.5% round-trip cost exceeds the ~0.5pp edge
-
-[5/10] Bucket
-  sector data for 40 of 40 candidates
-  bucket: 3 of 3 target — mix {'large': 3}
-  · Bucket capped at 3 by the risk off regime (requested 10).
-  · Sector cap reached: Technology (max 2 each).
-
-[6/10] News sentiment
-  skipped
-
-[6b] Daily tracker
-  +0 observations, +3 price rows
-  tracking 3 tickers
-  workbook: reports/daily_tracker.xlsx
-
-[7/10] Forward log
-  nothing to record
-
-[8/10] Evaluate matured picks
-  evaluated 0 (of 3 open)
-  no evaluated picks yet (3 still open)
-
-[9/10] Report
-  wrote html: reports/report_20260728.html
-
-[10/10] Notify
-  attaching workbook: daily_tracker.xlsx (9 KB)
-  {'telegram': True}
-
-------------------------------------------------------------------
-Analytical output only. Not investment advice. No orders were placed.
+  fetched 0 of 450 candidates
+  universe: 0 tickers — no truncation needed
+  0 of 0 tickers returned usable history
+  ABORT: no price data (yfinance rate limit?)

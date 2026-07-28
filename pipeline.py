@@ -55,6 +55,7 @@ except ImportError:
 import bucket as bk          # noqa: E402
 import config                # noqa: E402
 import forward_log as flog   # noqa: E402
+import governance as gov    # noqa: E402
 import health               # noqa: E402
 import newsfeed              # noqa: E402
 import daily_tracker as dtrack  # noqa: E402
@@ -118,6 +119,17 @@ def run(args) -> tuple[int, list[str], dict]:
     say(f"SwingScope pipeline — {dt.datetime.now():%Y-%m-%d %H:%M}")
     say("=" * 66)
 
+    # --- Model permission gate ---
+    #
+    # Guards the Knight Capital failure mode: dormant code reactivated by
+    # accident. A retired or undocumented model cannot generate picks.
+    model_id = ("momentum_12_1_v2" if args.model == "momentum" else "composite_v1")
+    permitted, reason = gov.check_model_permitted(model_id, "research shortlist")
+    if not permitted:
+        say(f"\nBLOCKED: {reason}")
+        return 1, log_lines, ctx
+    ctx["model_id"] = model_id
+
     # --- 1. Universe ---
     say("\n[1/10] Universe")
     ures = uni.fetch_index_constituents(args.universe)
@@ -175,6 +187,19 @@ def run(args) -> tuple[int, list[str], dict]:
             "cannot be reconstructed.")
         return 1, log_lines, ctx
     say(f"  health: {sum(hc.checks.values())}/{len(hc.checks)} checks passed")
+
+    # --- Provenance ---
+    #
+    # yfinance silently revises history. Without a fingerprint there is no way
+    # to tell later whether a decision looks wrong because the model erred or
+    # because the data beneath it moved.
+    prov = gov.stamp(data, params={
+        "universe": args.universe, "size": args.size, "horizon": args.horizon,
+        "model": args.model, "trim": args.trim,
+    }, model_id=ctx["model_id"])
+    ctx["provenance"] = prov
+    say(f"  provenance: code {prov['code']['model_code_hash']} · "
+        f"data {prov['data']['hash']} · git {prov['code']['git_commit']}")
 
     # --- 3. Regime ---
     say("\n[3/10] Regime")
@@ -417,6 +442,17 @@ def run(args) -> tuple[int, list[str], dict]:
         say(f"  {res if res else 'no channels configured'}")
     else:
         say("  skipped (pass --notify to enable)")
+
+    # --- Append-only audit entry ---
+    gov.audit("pipeline_run", {
+        "model_id": ctx.get("model_id"),
+        "universe": args.universe,
+        "regime": reg.state,
+        "picks": b.actual_size if not b.is_empty else 0,
+        "tickers_scored": len(data),
+        "provenance": ctx.get("provenance", {}),
+        "health": ctx.get("health", {}),
+    })
 
     say("\n" + "-" * 66)
     say("Analytical output only. Not investment advice. No orders were placed.")

@@ -113,9 +113,20 @@ jobs:
               "private key block":  r"-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----",
               "TOTP secret":        r"(?i)totp[_-]?secret\s*[=:]\s*['\"][A-Z2-7]{16,}['\"]",
           }
-          # Documentation and templates legitimately contain placeholder text.
-          allow = ("secrets.toml.example", "README.md", "MANUAL.md",
-                   "ci.yml", "AUDIT_REPORT.md", "COMPLIANCE_AUDIT.md")
+
+          # Placeholder detection. Setup documentation legitimately contains
+          # lines like api_secret = "your_secret". Flagging those trains people
+          # to ignore the scanner, which is worse than not having one.
+          placeholder = re.compile(
+              r"(?i)(your[_-]?|my[_-]?|example|placeholder|dummy|sample|"
+              r"changeme|change[_-]?me|xxx+|<[^>]+>|\.\.\.|todo|fixme|"
+              r"insert[_-]?|replace[_-]?|abc123|test[_-]?key|foo|bar)"
+          )
+
+          allow_files = ("secrets.toml.example", "README.md", "MANUAL.md",
+                         "ci.yml", "RUNBOOK.md", "AUDIT_REPORT.md",
+                         "COMPLIANCE_AUDIT.md", "20YEAR_VALIDATION_REPORT.md",
+                         "ROADMAP_30_DAYS.md")
 
           hits = []
           for p in pathlib.Path(".").rglob("*"):
@@ -124,7 +135,7 @@ jobs:
               if p.suffix not in (".py", ".yml", ".yaml", ".toml", ".json",
                                   ".env", ".cfg", ".ini", ".txt"):
                   continue
-              if p.name in allow:
+              if p.name in allow_files:
                   continue
               try:
                   text = p.read_text(errors="ignore")
@@ -132,8 +143,11 @@ jobs:
                   continue
               for label, pat in patterns.items():
                   for m in re.finditer(pat, text):
+                      matched = m.group(0)
+                      if placeholder.search(matched):
+                          continue          # documentation placeholder
                       line = text[:m.start()].count("\n") + 1
-                      hits.append(f"{p}:{line}: possible {label}")
+                      hits.append(f"{p}:{line}: possible {label} -> {matched[:60]}")
 
           if hits:
               print("POSSIBLE SECRETS COMMITTED:")
@@ -141,6 +155,8 @@ jobs:
                   print("  " + h)
               print("\nIf real: revoke the credential immediately, then remove it "
                     "from git history. Rotating is not optional — it is already public.")
+              print("If a placeholder the filter missed, add it to the placeholder "
+                    "pattern rather than disabling the check.")
               sys.exit(1)
           print("No committed secrets detected.")
           PY

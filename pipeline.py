@@ -269,6 +269,9 @@ def run(args) -> tuple[int, list[str], dict]:
             if tr.excel_path:
                 say(f"  workbook: {tr.excel_path}")
                 ctx["tracker_excel"] = tr.excel_path
+            else:
+                say("  NO WORKBOOK produced — nothing will be attached to the "
+                    "notification. Check for an openpyxl error above.")
             ctx["tracker_stats"] = {
                 "new_observations": tr.new_observations,
                 "tracked_tickers": tr.tracked_tickers,
@@ -381,6 +384,10 @@ def run(args) -> tuple[int, list[str], dict]:
         xl = ctx.get("tracker_excel")
         if xl and Path(xl).exists():
             send["xlsx"] = Path(xl)
+            say(f"  attaching workbook: {Path(xl).name} "
+                f"({Path(xl).stat().st_size/1024:.0f} KB)")
+        elif args.daily_track:
+            say("  no workbook to attach")
 
         res = notify.dispatch(
             subject=f"SwingScope {stamp:%d %b} — {b.actual_size} picks "

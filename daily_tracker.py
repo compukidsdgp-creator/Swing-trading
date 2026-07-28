@@ -249,6 +249,14 @@ def write_excel(obs: pd.DataFrame, px: pd.DataFrame, perf: pd.DataFrame,
     """Write the cumulative workbook. Returns the path, or None if unavailable."""
     path.parent.mkdir(parents=True, exist_ok=True)
     try:
+        import openpyxl  # noqa: F401
+    except ImportError:
+        print("  Excel export SKIPPED — openpyxl is not installed.")
+        print("     Fix:  pip install openpyxl")
+        print("     CSVs were still written; only the workbook is missing.")
+        return None
+
+    try:
         with pd.ExcelWriter(path, engine="openpyxl") as xl:
             # Read-me first, so the caveat cannot be missed
             pd.DataFrame({

@@ -214,5 +214,10 @@ def to_text(bucket: Bucket, *, regime_desc: str = "") -> str:
         lines.append("")
         lines.append("Mix: " + ", ".join(f"{k} {v}" for k, v in
                                          sorted(bucket.tier_counts.items())))
+    # Volatility scaling belongs in the message — a bucket at 40% exposure is a
+    # materially different instruction from the same bucket at 100%.
+    for n in bucket.notes:
+        if "Volatility scaling" in n:
+            lines.append(n)
     lines += ["", "Analytical view, not advice. EOD data — verify on your terminal."]
     return "\n".join(lines)

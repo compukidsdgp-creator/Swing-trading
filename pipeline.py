@@ -290,6 +290,36 @@ def run(args) -> tuple[int, list[str], dict]:
         + (f" — mix {b.tier_counts}" if b.tier_counts else ""))
     for n in b.notes:
         say(f"  · {n}")
+    # --- Exit-liquidity gate ---
+    #
+    # Position sizing assumes stops fill. For a non-F&O stock in a 5% band that
+    # can be false: when price locks limit-down there is no bid, the stop never
+    # executes, and the position is trapped until buyers return — often several
+    # sessions and 25% lower. This is a catastrophic rather than gradual
+    # failure, and no ATR calibration prevents it.
+    if not b.is_empty and not args.skip_circuit:
+        fno, fno_src, fno_live = cir.load_fno_list(allow_refresh=True)
+        say(f"\n  exit-liquidity check (F&O list: {len(fno)} symbols, {fno_src})")
+        if not fno_live:
+            say("    ! F&O list is not live — verify against nseindia.com if it "
+                "looks stale")
+        kept, dropped = cir.filter_bucket(
+            b.picks, fno=fno, require_fno=args.require_fno,
+            atr_mult=tr.params("mid")["atr_mult"],
+        )
+        if not dropped.empty:
+            say(f"    excluded {len(dropped)} of {len(b.picks)} on exit risk:")
+            for _, r in dropped.iterrows():
+                say(f"      {r['Ticker']}: {str(r['exclusion_reason'])[:80]}")
+            b.picks = kept.reset_index(drop=True)
+            if not b.picks.empty:
+                b.picks["Rank"] = range(1, len(b.picks) + 1)
+            b.actual_size = len(b.picks)
+            b.notes.append(f"{len(dropped)} pick(s) excluded — stop not reachable "
+                           "within the daily price band.")
+        else:
+            say("    all picks pass — stops are reachable")
+
     ctx["picks"] = b.picks if not b.is_empty else None
     ctx["bucket"] = b
 
@@ -317,6 +347,59 @@ def run(args) -> tuple[int, list[str], dict]:
     else:
         say("  skipped")
     ctx["news_notes"] = news_notes
+
+    # --- 5b. Momentum crash protection ---
+    #
+    # The regime gate watches the INDEX. Momentum crashes are predicted by
+    # momentum's own realised volatility, and the two diverge precisely when it
+    # matters. Barroso & Santa-Clara (2015) found volatility scaling roughly
+    # doubled the Sharpe ratio and largely eliminated the crashes.
+    #
+    # This module was built and tested but never connected — a real gap.
+    if not b.is_empty and not args.skip_crash_protection:
+        say("\n[5b] Crash protection")
+        try:
+            # Prefer the strategy's own return series; fall back to a basket proxy
+            log_for_vol = (flog.from_csv(LOG_PATH.read_bytes())
+                           if LOG_PATH.exists() else flog.empty_log())
+            strat_returns = cp.strategy_returns_from_log(log_for_vol)
+            if len(strat_returns) < cp.MIN_OBS:
+                strat_returns = cp.proxy_returns_from_holdings(data)
+                basis = "basket proxy (insufficient strategy history)"
+            else:
+                basis = "strategy returns"
+
+            scale = cp.compute_scale(strat_returns)
+            ctx["vol_scale"] = scale
+            say(f"  realised vol {scale.realised_vol:.1%} vs {scale.target_vol:.0%} "
+                f"target -> exposure {scale.exposure_pct:.0f}%  [{basis}]")
+            if scale.is_defensive:
+                say(f"  DEFENSIVE: {scale.note[:100]}")
+            if scale.capped:
+                say("  (scaling was capped at the configured bound)")
+
+            crash = cp.crash_risk_indicator(bench)
+            if crash.get("available"):
+                ctx["crash_risk"] = crash
+                say(f"  market crash-risk state: {crash['risk_state']}")
+                if crash["risk_state"] != "normal":
+                    say(f"    {crash['note'][:110]}")
+                    if crash["risk_state"] == "high":
+                        # Documented momentum-crash configuration — treat as
+                        # seriously as a regime downgrade.
+                        say("    Reducing exposure further on crash-risk grounds.")
+                        ctx["vol_scale"] = cp.ScalingResult(
+                            scale.realised_vol, scale.target_vol, scale.raw_scale,
+                            min(scale.applied_scale, 0.5),
+                            min(scale.applied_scale, 0.5) * 100,
+                            scale.mode, "crash_risk", True, scale.n_observations,
+                            "Sharp rebound from deep drawdown — exposure halved.")
+            b.notes.append(
+                f"Volatility scaling: exposure {ctx['vol_scale'].exposure_pct:.0f}% "
+                f"of nominal.")
+        except Exception as exc:                               # noqa: BLE001
+            say(f"  crash protection unavailable ({type(exc).__name__}) — "
+                "proceeding at full exposure")
 
     # --- 6b. Daily observation diary ---
     #
@@ -501,6 +584,16 @@ def main() -> int:
     p.add_argument("--skip-news", action="store_true")
     p.add_argument("--skip-macro", action="store_true",
                    help="skip the macro overlay on the regime gate")
+    p.add_argument("--skip-crash-protection", action="store_true",
+                   help="skip volatility scaling. NOT recommended — momentum "
+                        "crashes are the dominant tail risk for this strategy.")
+    p.add_argument("--skip-circuit", action="store_true",
+                   help="skip the exit-liquidity check (NOT recommended — it "
+                        "prevents picks whose stop cannot fill inside the "
+                        "daily price band)")
+    p.add_argument("--require-fno", action="store_true",
+                   help="only include F&O-eligible stocks, which have no "
+                        "individual price band")
     p.add_argument("--no-log", action="store_true")
     p.add_argument("--no-pdf", action="store_true")
     p.add_argument("--notify", action="store_true")

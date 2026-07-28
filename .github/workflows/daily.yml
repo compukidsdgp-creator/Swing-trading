@@ -1,0 +1,59 @@
+name: SwingScope daily tracker
+
+# Runs every weekday BEFORE market open (09:00 IST = 03:30 UTC).
+# The bucket is computed from the previous session's close, which is the
+# correct basis for deciding what to trade today.
+#
+# NOTE: this only appends to the daily DIARY. It does not touch forward_log.csv,
+# whose weekly non-overlapping windows are the actual statistical evidence.
+on:
+  schedule:
+    - cron: '30 3 * * 1-5'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  track:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt openpyxl
+
+      - name: Run daily tracker
+        run: |
+          python pipeline.py \
+            --universe "Nifty 500" \
+            --size 10 \
+            --horizon 15 \
+            --model momentum \
+            --daily-track \
+            --no-log \
+            --no-pdf \
+            --skip-news
+        continue-on-error: true
+
+      - name: Commit diary
+        run: |
+          git config user.name  "swingscope-bot"
+          git config user.email "actions@github.com"
+          git add daily_observations.csv daily_prices.csv reports/ || true
+          git diff --staged --quiet || git commit -m "Daily tracker $(date +%F)"
+          git push || true
+
+      - name: Upload workbook
+        uses: actions/upload-artifact@v5
+        with:
+          name: daily-tracker-${{ github.run_number }}
+          path: |
+            reports/daily_tracker.xlsx
+            daily_observations.csv
+          if-no-files-found: warn
+          retention-days: 90

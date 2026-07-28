@@ -1,0 +1,105 @@
+name: CI
+
+# Runs on every push and pull request touching Python.
+#
+# Why this exists: during development, patches silently failed to apply and
+# functions were accidentally deleted by careless string replacement. Both
+# would have been caught here in seconds. Manual verification does not scale
+# and does not remember.
+on:
+  push:
+    paths: ['**.py', 'requirements.txt', '.github/workflows/ci.yml']
+  pull_request:
+    paths: ['**.py', 'requirements.txt']
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # --- Fast checks first: fail in seconds, not minutes ---
+      - name: Syntax check all modules
+        run: |
+          python - <<'PY'
+          import ast, pathlib, sys
+          bad = []
+          for p in sorted(pathlib.Path('.').glob('*.py')):
+              try:
+                  ast.parse(p.read_text())
+              except SyntaxError as e:
+                  bad.append(f"{p.name}:{e.lineno}: {e.msg}")
+          if bad:
+              print("SYNTAX ERRORS:")
+              [print("  " + b) for b in bad]
+              sys.exit(1)
+          print(f"{len(list(pathlib.Path('.').glob('*.py')))} modules parse OK")
+          PY
+
+      - name: Check every module imports
+        run: |
+          python - <<'PY'
+          import importlib, pathlib, sys
+          skip = {"app", "test_invariants", "benchmark"}   # app needs a Streamlit runtime
+          failed = []
+          for p in sorted(pathlib.Path('.').glob('*.py')):
+              name = p.stem
+              if name in skip:
+                  continue
+              try:
+                  importlib.import_module(name)
+              except Exception as e:
+                  failed.append(f"{name}: {type(e).__name__}: {e}")
+          if failed:
+              print("IMPORT FAILURES:")
+              [print("  " + f) for f in failed]
+              sys.exit(1)
+          print("all modules import cleanly")
+          PY
+
+      # --- The check that would have caught tonight's deleted functions ---
+      - name: Check app.py wiring
+        run: |
+          python - <<'PY'
+          import ast, re, sys
+          src = open('app.py').read()
+          tree = ast.parse(src)
+          defined = {n.name for n in tree.body if isinstance(n, ast.FunctionDef)}
+          called = set(re.findall(r'\b(render_\w+|_bucket_dialog|_report_links_sidebar)\s*\(', src))
+          missing = sorted(called - defined)
+          if missing:
+              print(f"CALLED BUT NOT DEFINED: {missing}")
+              sys.exit(1)
+
+          m = re.search(r'st\.tabs\(\[(.*?)\]\)', src, re.S)
+          n_tabs = m.group(1).count(',') + 1
+          idxs = sorted({int(i) for i in re.findall(r'with tabs\[(\d+)\]', src)})
+          if idxs != list(range(n_tabs)):
+              print(f"TAB MISMATCH: {n_tabs} declared, wired {idxs}")
+              sys.exit(1)
+          print(f"app.py OK — {len(defined)} functions, {n_tabs} tabs correctly wired")
+          PY
+
+      # --- Property-based suite ---
+      - name: Invariant tests
+        run: python test_invariants.py 25
+
+      - name: Report result
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "### ✅ All checks passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Checks failed — do not deploy this commit" >> $GITHUB_STEP_SUMMARY
+          fi

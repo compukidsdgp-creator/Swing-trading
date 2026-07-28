@@ -1,0 +1,75 @@
+name: Alpha decay monitor
+
+# Quarterly. Monthly would be too frequent to be informative and invites
+# reacting to noise — the whole point is to see a trend, not a wobble.
+#
+# 1st of Jan / Apr / Jul / Oct at 04:00 UTC.
+on:
+  schedule:
+    - cron: '0 4 1 1,4,7,10 *'
+  workflow_dispatch:
+    inputs:
+      analyse_only:
+        description: 'Report on existing history without measuring'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Measure IC and analyse trend
+        env:
+          TELEGRAM_TOKEN:   ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SMTP_HOST:        ${{ secrets.SMTP_HOST }}
+          SMTP_PORT:        ${{ secrets.SMTP_PORT }}
+          SMTP_USER:        ${{ secrets.SMTP_USER }}
+          SMTP_PASS:        ${{ secrets.SMTP_PASS }}
+          REPORT_TO:        ${{ secrets.REPORT_TO }}
+        run: |
+          FLAGS=""
+          if [ "${{ github.event.inputs.analyse_only }}" = "true" ]; then
+            FLAGS="--analyse-only"
+          fi
+          python decay_monitor.py \
+            --universe "Nifty 500" \
+            --horizon 15 \
+            --period 5y \
+            --stocks 100 \
+            --model momentum \
+            --notify $FLAGS
+        continue-on-error: true
+
+      - name: Commit history
+        run: |
+          git config user.name  "swingscope-bot"
+          git config user.email "actions@github.com"
+          git add decay_history.csv reports/decay_latest.json || true
+          git diff --staged --quiet || git commit -m "Decay measurement $(date +%F)"
+          git push || true
+
+      - name: Surface result in the run summary
+        if: always()
+        run: |
+          if [ -f reports/decay_latest.json ]; then
+            echo '### Alpha decay monitor' >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            cat reports/decay_latest.json >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi

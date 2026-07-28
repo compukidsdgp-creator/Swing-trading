@@ -1,11 +1,5 @@
 name: SwingScope daily tracker
 
-# Runs every weekday BEFORE market open (09:00 IST = 03:30 UTC).
-# The bucket is computed from the previous session's close, which is the
-# correct basis for deciding what to trade today.
-#
-# NOTE: this only appends to the daily DIARY. It does not touch forward_log.csv,
-# whose weekly non-overlapping windows are the actual statistical evidence.
 on:
   schedule:
     - cron: '30 3 * * 1-5'
@@ -19,23 +13,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-
       - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
-
       - name: Install dependencies
         run: pip install -r requirements.txt openpyxl
-
       - name: Run daily tracker
         env:
           TELEGRAM_TOKEN:   ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          SMTP_HOST:        ${{ secrets.SMTP_HOST }}
-          SMTP_PORT:        ${{ secrets.SMTP_PORT }}
-          SMTP_USER:        ${{ secrets.SMTP_USER }}
-          SMTP_PASS:        ${{ secrets.SMTP_PASS }}
-          REPORT_TO:        ${{ secrets.REPORT_TO }}
         run: |
           python pipeline.py \
             --universe "Nifty 500" \
@@ -48,7 +34,6 @@ jobs:
             --skip-news \
             --notify --channels telegram
         continue-on-error: true
-
       - name: Commit diary
         run: |
           git config user.name  "swingscope-bot"
@@ -56,13 +41,3 @@ jobs:
           git add daily_observations.csv daily_prices.csv reports/ || true
           git diff --staged --quiet || git commit -m "Daily tracker $(date +%F)"
           git push || true
-
-      - name: Upload workbook
-        uses: actions/upload-artifact@v5
-        with:
-          name: daily-tracker-${{ github.run_number }}
-          path: |
-            reports/daily_tracker.xlsx
-            daily_observations.csv
-          if-no-files-found: warn
-          retention-days: 90

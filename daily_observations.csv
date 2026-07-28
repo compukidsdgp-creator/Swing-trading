@@ -1,0 +1,4 @@
+obs_date,ticker,rank,tier,score,momentum_pct,regime,ref_close,sector,cost_viable,notes
+2026-07-28,ATHERENERG,1,large,100,196.36,risk_off,1214.9,Consumer Cyclical,True,model=momentum
+2026-07-28,HFCL,2,large,96,168.06,risk_off,192.54,Technology,True,model=momentum
+2026-07-28,NETWEB,3,large,92,161.09,risk_off,4362.2,Technology,True,model=momentum

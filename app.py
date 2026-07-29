@@ -587,13 +587,53 @@ def render_screener(cfg: dict) -> pd.DataFrame:
             )
         return pd.DataFrame()
 
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Scanned", len(res))
     c2.metric("Passed filters", len(filtered))
-    c3.metric("Median score", f"{res['Score'].median():.0f}")
+
+    # Selectivity — the concentration that made the validated result work.
+    # The 20-year test measured a 1.63% gross spread taking the top 5% of a
+    # large ranked set against 0.56% for the top 20%. Filters that shrink the
+    # universe before selection quietly convert the former into the latter, and
+    # nothing on screen showed it.
+    bucket_size = st.session_state.get("bucket_size", 10)
+    if len(filtered):
+        sel = bucket_size / len(filtered)
+        c3.metric(
+            "Selectivity", f"top {sel:.0%}",
+            help=f"Taking {bucket_size} of {len(filtered)}. The validated "
+                 "configuration was the top 5% — concentration is where the "
+                 "edge lives.",
+        )
+    else:
+        c3.metric("Selectivity", "—")
+
+    c4.metric("Median score", f"{res['Score'].median():.0f}")
     if bench_df is not None and len(bench_df) > 20:
         b_ret = (bench_df["Close"].iloc[-1] / bench_df["Close"].iloc[-21] - 1) * 100
-        c4.metric("Nifty 20d", f"{b_ret:+.1f}%")
+        c5.metric("Nifty 20d", f"{b_ret:+.1f}%")
+
+    if len(filtered):
+        sel = bucket_size / len(filtered)
+        if sel > 0.15:
+            st.warning(
+                f"**Selectivity is top {sel:.0%}, against the top 5% that was "
+                f"validated.** Filters cut {len(res)} candidates to "
+                f"{len(filtered)} before selection, so taking {bucket_size} is "
+                "closer to the quintile configuration (0.56% gross spread) than "
+                "the concentrated one (1.63%). Today's bucket is not the "
+                "configuration the +5.95% figure came from.\n\n"
+                "Raise the universe cap, or relax the filters so more names "
+                "reach the ranking stage. In a weak regime few stocks have "
+                "positive 12-month momentum, and this may simply be all that "
+                "qualifies — in which case conditions do not support the "
+                "strategy today.",
+                icon="🎯",
+            )
+        elif sel <= 0.05:
+            st.success(
+                f"Selectivity top {sel:.0%} — at or better than the validated "
+                "configuration.")
 
     if filtered.empty:
         st.info("Nothing passed. Loosen the filters in the sidebar.")
@@ -648,6 +688,7 @@ def render_screener(cfg: dict) -> pd.DataFrame:
 
     with bcol.popover("⚙️ Bucket settings", use_container_width=True):
         b_size = st.slider("Bucket size", 3, 20, 10)
+        st.session_state["bucket_size"] = b_size
         b_sector = st.slider("Max per sector", 1, 5, 2)
         b_balance = st.checkbox("Balance across tiers", value=True,
                                 help="Spread across large/mid/small within what the "

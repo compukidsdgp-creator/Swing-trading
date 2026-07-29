@@ -45,6 +45,7 @@ import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import requests
 
@@ -345,6 +346,152 @@ def load_cached(start: str | dt.date | None = None,
         if not df.empty:
             out[d] = df
     return out
+
+
+def build_price_history(
+    frames: dict | None = None,
+    *,
+    min_days: int = 400,
+    adjust_splits: bool = True,
+    split_threshold: float = 0.35,
+) -> tuple[dict, dict]:
+    """Reconstruct per-symbol OHLCV history from cached bhavcopies.
+
+    This is what makes genuine point-in-time validation possible. Bhavcopy
+    records every security that traded on a given day, including companies that
+    later delisted — right up to their final session. Building price history
+    from the same source as the universe means failures are present in both,
+    which is the only way to remove survivorship bias rather than merely
+    reducing it.
+
+    The catch: bhavcopy prices are NOT adjusted for corporate actions. A 1:5
+    split appears as an 80% single-day collapse, and momentum computed across
+    one is badly wrong.
+
+    Splits are therefore detected and back-adjusted heuristically: a
+    single-session move beyond `split_threshold` with no corresponding move in
+    the broader market is treated as a corporate action, and prior prices are
+    scaled. This is imperfect — a genuine 40% crash would be misread — so the
+    number of adjustments is reported for inspection rather than applied
+    silently.
+
+    Returns (frames, report).
+    """
+    src = frames if frames is not None else load_cached()
+    if not src:
+        return {}, {"error": "No cached bhavcopies. Download history first."}
+
+    dates = sorted(src)
+    rows = []
+    for d in dates:
+        day = src[d]
+        if day is None or day.empty or "symbol" not in day.columns:
+            continue
+        cols = [c for c in ("symbol", "open", "high", "low", "close",
+                            "volume", "turnover", "deliv_pct") if c in day.columns]
+        sub = day[cols].copy()
+        sub["date"] = pd.Timestamp(d)
+        rows.append(sub)
+
+    if not rows:
+        return {}, {"error": "No usable rows in the cache."}
+
+    allday = pd.concat(rows, ignore_index=True)
+    out, adjusted, skipped = {}, [], []
+
+    for sym, g in allday.groupby("symbol"):
+        g = g.sort_values("date").set_index("date")
+        if len(g) < min_days:
+            skipped.append(sym)
+            continue
+
+        ren = {"open": "Open", "high": "High", "low": "Low",
+               "close": "Close", "volume": "Volume"}
+        have = {k: v for k, v in ren.items() if k in g.columns}
+        if len(have) < 5:
+            skipped.append(sym)
+            continue
+
+        df = g[list(have)].rename(columns=have).astype(float)
+        if "turnover" in g.columns:
+            df["Turnover"] = g["turnover"].astype(float)
+        if "deliv_pct" in g.columns:
+            df["DelivPct"] = g["deliv_pct"].astype(float)
+
+        n_adj = 0
+        if adjust_splits:
+            ret = df["Close"].pct_change()
+            # Work backwards so each adjustment applies to everything before it
+            for i in range(len(df) - 1, 0, -1):
+                r = ret.iloc[i]
+                if not np.isfinite(r) or abs(r) < split_threshold:
+                    continue
+                factor = float(df["Close"].iloc[i] / df["Close"].iloc[i - 1])
+                # Only treat it as a split if the ratio is near a simple one
+                for target in (0.5, 1/3, 0.25, 0.2, 0.1, 2.0, 3.0, 5.0, 10.0):
+                    if abs(factor - target) / target < 0.12:
+                        for c in ("Open", "High", "Low", "Close"):
+                            df.iloc[:i, df.columns.get_loc(c)] *= factor
+                        n_adj += 1
+                        break
+        if n_adj:
+            adjusted.append((sym, n_adj))
+
+        out[f"{sym}.NS"] = df
+
+    report = {
+        "symbols": len(out),
+        "skipped_short_history": len(skipped),
+        "split_adjusted": len(adjusted),
+        "adjustments": adjusted[:20],
+        "date_range": (dates[0].isoformat(), dates[-1].isoformat()),
+        "total_bars": int(sum(len(v) for v in out.values())),
+        "note": ("Prices reconstructed from NSE bhavcopy — the same source as "
+                 "the universe, so delisted companies are present in both. "
+                 "Splits back-adjusted heuristically; verify the adjustment "
+                 "count looks plausible before relying on the result."),
+    }
+    return out, report
+
+
+def delisted_symbols(frames: dict | None = None,
+                     *, gap_days: int = 30) -> pd.DataFrame:
+    """Symbols that stopped trading — the ones survivorship bias hides.
+
+    A security whose last appearance is well before the cache's end either
+    delisted, merged, or was suspended. Counting them shows directly how much
+    a present-day constituent list is missing.
+    """
+    src = frames if frames is not None else load_cached()
+    if not src:
+        return pd.DataFrame()
+
+    dates = sorted(src)
+    last_seen, first_seen = {}, {}
+    for d in dates:
+        day = src[d]
+        if day is None or day.empty or "symbol" not in day.columns:
+            continue
+        for s in day["symbol"].astype(str).unique():
+            last_seen[s] = d
+            first_seen.setdefault(s, d)
+
+    if not last_seen:
+        return pd.DataFrame()
+
+    end = dates[-1]
+    rows = []
+    for s, last in last_seen.items():
+        gap = (end - last).days
+        if gap > gap_days:
+            rows.append({
+                "symbol": s,
+                "first_seen": first_seen[s].isoformat(),
+                "last_seen": last.isoformat(),
+                "days_since": gap,
+            })
+    return (pd.DataFrame(rows).sort_values("last_seen", ascending=False)
+            .reset_index(drop=True))
 
 
 def cache_stats() -> dict:

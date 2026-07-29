@@ -52,6 +52,12 @@ def main() -> int:
     p.add_argument("--min-turnover", type=float, default=10.0)
     p.add_argument("--local-data", default=None,
                    help="directory of per-symbol CSVs, e.g. the 20-year dataset")
+    p.add_argument("--prices-from-bhavcopy", action="store_true",
+                   help="reconstruct price history from bhavcopy itself rather "
+                        "than yfinance. This is the version that actually "
+                        "removes survivorship bias: universe AND prices come "
+                        "from the same source, so delisted companies appear in "
+                        "both. Strongly recommended.")
     args = p.parse_args()
 
     print("=" * 70)
@@ -68,7 +74,27 @@ def main() -> int:
         return 1
 
     # --- Price data ---
-    if args.local_data:
+    if args.prices_from_bhavcopy:
+        print("\nReconstructing price history from bhavcopy…")
+        print("  (universe and prices from the same source — delisted "
+              "companies present in both)")
+        bhav_all = bc.load_cached()
+        frames, rep = bc.build_price_history(bhav_all, min_days=400)
+        if "error" in rep:
+            print(f"  {rep['error']}")
+            return 1
+        print(f"  {rep['symbols']} symbols · {rep['total_bars']:,} bars · "
+              f"{rep['date_range'][0]} to {rep['date_range'][1]}")
+        print(f"  {rep['split_adjusted']} split adjustment(s) applied")
+        if rep["split_adjusted"] > rep["symbols"] * 0.15:
+            print("  ! Unusually many adjustments — inspect before trusting "
+                  "the result.")
+
+        gone = bc.delisted_symbols(bhav_all)
+        if not gone.empty:
+            print(f"\n  {len(gone)} symbols stopped trading during the period.")
+            print("  These are exactly what a present-day constituent list hides.")
+    elif args.local_data:
         import local_data as ld
         print(f"\nLoading local dataset from {args.local_data}…")
         res = ld.load(args.local_data, use_adjusted=True, min_bars=500,
@@ -89,6 +115,13 @@ def main() -> int:
 
     bhav = bc.load_cached()
     print(f"  {len(bhav)} bhavcopy days loaded from cache")
+
+    if not args.prices_from_bhavcopy:
+        print("\n  NOTE: prices come from yfinance, which only covers surviving "
+              "companies.\n  Bhavcopy fixes index-membership drift but a "
+              "delisted stock still has no\n  price series, so it is skipped. "
+              "Use --prices-from-bhavcopy for the\n  version that genuinely "
+              "removes survivorship bias.")
 
     # --- Standard ---
     print("\n" + "-" * 70)

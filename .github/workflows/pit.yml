@@ -71,8 +71,17 @@ jobs:
           start = end - dt.timedelta(days=int(target * 1.45))
 
           print(f"ensuring {start} to {end} is cached...")
+          # fetch_range signature: (start, end, *, max_days, progress)
+          # Caching happens inside fetch_day; already-cached dates are skipped.
+          # progress is called as (i, n, date, source) — accept *args so a
+          # future signature change cannot break a 60-minute download.
+          def _prog(*a):
+              if a and a[0] % 50 == 0:
+                  print(f"  {a[0]}/{a[1] if len(a) > 1 else '?'} "
+                        f"{a[2] if len(a) > 2 else ''}", flush=True)
+
           res = bc.fetch_range(start.isoformat(), end.isoformat(),
-                               max_days=target, use_cache=True)
+                               max_days=target, progress=_prog)
           after = bc.cache_stats()
           print(f"cache after: {after['days']} days "
                 f"({after.get('earliest')} to {after.get('latest')})")

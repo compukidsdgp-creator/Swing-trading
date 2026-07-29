@@ -66,6 +66,7 @@ import health               # noqa: E402
 import newsfeed              # noqa: E402
 import daily_tracker as dtrack  # noqa: E402
 import notify                # noqa: E402
+import positions as posn     # noqa: E402
 import regime as rg          # noqa: E402
 import report as rep         # noqa: E402
 import momentum as momo      # noqa: E402
@@ -533,6 +534,65 @@ def run(args) -> tuple[int, list[str], dict]:
             say(f"  earnings check unavailable ({type(exc).__name__}) — "
                 "picks NOT screened for results dates")
 
+    # --- 6d. Open position monitoring ---
+    #
+    # The system previously generated picks, computed stops and targets, and
+    # then lost interest. No open-position view, no P&L against the recorded
+    # levels, no alert when a holding reached its stop. A screener without a
+    # portfolio is half a system.
+    #
+    # This reports only. It never places or cancels an order.
+    if args.monitor_positions:
+        say("\n[6d] Open positions")
+        try:
+            held = posn.load_positions()
+            live = held[held["status"] == "open"] if not held.empty else held
+            if live.empty:
+                say("  none open")
+            else:
+                tickers = tuple(f"{t}.NS" for t in live["ticker"].unique())
+                pdata = {t.replace(".NS", ""): v
+                         for t, v in _fetch(tickers, period="6mo").items()}
+                pos_mon = posn.monitor(held, pdata)
+                posn.save_positions(pos_mon.positions)
+
+                s = pos_mon.summary
+                say(f"  {s['open']} open · {s['total_pnl_r']:+.2f}R · "
+                    f"{s['winners']}W/{s['losers']}L")
+                if s["closed_today"]:
+                    say(f"  {s['closed_today']} closed today")
+                for a in pos_mon.alerts:
+                    say(f"  ALERT {a['message'][:90]}")
+
+                ctx["position_alerts"] = pos_mon.alerts
+                ctx["position_summary"] = {k: v for k, v in s.items()
+                                           if k != "detail"}
+
+                # Alerts go out immediately rather than waiting for the weekly
+                # message — a stop hit is time-sensitive.
+                if pos_mon.has_alerts and args.notify:
+                    try:
+                        notify.dispatch(
+                            subject=f"SwingScope — {len(pos_mon.alerts)} position alert(s)",
+                            html_body="<h2>Position alerts</h2><ul>"
+                                      + "".join(f"<li>{a['message']}</li>"
+                                                for a in pos_mon.alerts)
+                                      + "</ul>",
+                            text_body=posn.alert_message(pos_mon),
+                            channels=args.channels,
+                        )
+                        say("  alerts sent")
+                    except Exception as exc:                   # noqa: BLE001
+                        say(f"  alert send failed: {type(exc).__name__}")
+
+                perf = posn.closed_performance(pos_mon.positions)
+                if "error" not in perf:
+                    say(f"  closed: {perf['closed']} trades, "
+                        f"expectancy {perf['expectancy_r']:+.3f}R, "
+                        f"win rate {perf['win_rate_pct']}%")
+        except Exception as exc:                               # noqa: BLE001
+            say(f"  monitoring failed ({type(exc).__name__}: {exc})")
+
     # --- 7. Log ---
     say("\n[7/10] Forward log")
     log = flog.from_csv(LOG_PATH.read_bytes()) if LOG_PATH.exists() else flog.empty_log()
@@ -696,6 +756,10 @@ def main() -> int:
     p.add_argument("--skip-crash-protection", action="store_true",
                    help="skip volatility scaling. NOT recommended — momentum "
                         "crashes are the dominant tail risk for this strategy.")
+    p.add_argument("--monitor-positions", action="store_true",
+                   help="check open positions against their stops and targets, "
+                        "and alert on any that fired. Reports only — never "
+                        "places or cancels an order.")
     p.add_argument("--skip-earnings", action="store_true",
                    help="skip the earnings-window exclusion. NOT recommended: "
                         "a results surprise moves a stock 8-15%% in a session "

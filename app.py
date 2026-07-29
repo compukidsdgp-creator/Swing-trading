@@ -295,9 +295,24 @@ def sidebar() -> dict:
             help="Without this, a percentile rank promotes the best of a falling "
                  "market and stamps it 100. Strongly recommended.",
         )
+        exclude_small = st.sidebar.checkbox(
+            "Exclude small caps", value=True,
+            help="0.96% round-trip cost against a ~2% long-only edge. The "
+                 "automated pipeline excludes them; matching that keeps the "
+                 "app and the Monday bucket consistent.",
+        )
+        apply_rsi_band = st.sidebar.checkbox(
+            "Apply RSI band (not validated)", value=False,
+            help="Leftover from the v1 composite. The 20-year validation used "
+                 "momentum alone — no RSI filter. Switching this on screens on "
+                 "something untested and will make the app disagree with the "
+                 "Monday bucket.",
+        )
     else:
         min_score = st.sidebar.slider("Min composite score", 0, 100, 55)
         require_positive_mom = False
+        exclude_small = False
+        apply_rsi_band = True
 
     st.sidebar.divider()
     _report_links_sidebar()
@@ -320,6 +335,8 @@ def sidebar() -> dict:
         universe_name=label,
         universe_result=result,
         require_positive_mom=require_positive_mom,
+        exclude_small=exclude_small,
+        apply_rsi_band=apply_rsi_band,
         max_scan=max_scan,
         trim_method=trim_method,
     )
@@ -519,15 +536,30 @@ def render_screener(cfg: dict) -> pd.DataFrame:
     # Each filter evaluated separately, so it is visible which one is binding.
     # A chain of individually reasonable filters can multiply out to zero, and
     # "nothing passed" without attribution leaves you guessing.
+    # Filter chain.
+    #
+    # IMPORTANT: the RSI band is a leftover from the v1 composite. The 20-year
+    # validation ranked on momentum alone — no RSI filter was ever part of it.
+    # Applying it here means screening on something untested, and it made the
+    # app's picks diverge from the automated pipeline's.
+    #
+    # In momentum mode it is therefore off by default, and clearly labelled as
+    # unvalidated when switched on.
+    momentum_mode = cfg.get("model") == "momentum"
+
     checks = {
         f"turnover ≥ ₹{cfg['min_turnover']:.0f} Cr": res["Turnover_Cr"] >= cfg["min_turnover"],
-        f"RSI in {lo}–{hi}": res["RSI"].between(lo, hi),
         f"score ≥ {cfg['min_score']}": res["Score"] >= cfg["min_score"],
     }
+    if not momentum_mode or cfg.get("apply_rsi_band", False):
+        checks[f"RSI in {lo}–{hi} (not validated)" if momentum_mode
+               else f"RSI in {lo}–{hi}"] = res["RSI"].between(lo, hi)
     if cfg["require_uptrend"]:
         checks["price > 50 EMA"] = res["Above_50EMA"]
     if respect_regime:
         checks[f"tier in {sorted(reg.allowed_tiers)}"] = res["Tier"].isin(reg.allowed_tiers)
+    if momentum_mode and cfg.get("exclude_small", True):
+        checks["cost-viable tier (large/mid)"] = res["Tier"].isin(momo.RECOMMENDED_TIERS)
 
     mask = pd.Series(True, index=res.index)
     for m in checks.values():
@@ -612,6 +644,14 @@ def render_screener(cfg: dict) -> pd.DataFrame:
     if bench_df is not None and len(bench_df) > 20:
         b_ret = (bench_df["Close"].iloc[-1] / bench_df["Close"].iloc[-21] - 1) * 100
         c5.metric("Nifty 20d", f"{b_ret:+.1f}%")
+
+    if momentum_mode:
+        st.caption(
+            "**This screen is not identical to the Monday bucket.** The automated "
+            "pipeline additionally applies a macro overlay on the regime, a hard "
+            "earnings-window exclusion, an exit-liquidity check, and volatility "
+            "scaling. Expect the Monday picks to be a subset of what you see here."
+        )
 
     if len(filtered):
         sel = bucket_size / len(filtered)

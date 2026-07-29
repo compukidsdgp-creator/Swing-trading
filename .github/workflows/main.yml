@@ -12,9 +12,8 @@ jobs:
   pipeline:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
@@ -25,19 +24,42 @@ jobs:
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python pipeline.py --universe "Nifty 500" --size 10 --horizon 30 --no-pdf --notify --backtest-ic 0.0311
+        run: |
+          # Month-end review on the 1st, weekly picks otherwise
+          EXTRA=""
+          if [ "$(date +%d)" = "01" ]; then EXTRA="--monthly"; fi
+          python pipeline.py \
+            --universe "Nifty 500" \
+            --size 10 \
+            --horizon 30 \
+            --no-pdf \
+            --notify \
+            --backtest-ic 0.0311 $EXTRA
 
       - name: Commit results
         run: |
           git config user.name "swingscope-bot"
           git config user.email "actions@github.com"
-          git add forward_log.csv reports/ || true
+          git add forward_log.csv reports/ audit_trail.jsonl || true
           git diff --staged --quiet || git commit -m "Run $(date +%F)"
           git push || true
 
       - name: Upload report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: report-${{ github.run_number }}
           path: reports/
           if-no-files-found: warn
+
+      # Silence looks exactly like a quiet market. This makes failure audible.
+      - name: Alert on failure
+        if: failure()
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          curl -s -X POST \
+            "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            -d text="🔴 SwingScope weekly run FAILED (run ${{ github.run_number }}). The forward log has stopped accumulating until this is fixed. https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            || true

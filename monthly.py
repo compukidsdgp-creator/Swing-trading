@@ -24,6 +24,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+import attribution as attrib
+
 from report import CSS, _cards, _table
 
 # Typical cross-sectional standard deviation of per-window IC for equity
@@ -334,3 +336,39 @@ def save_monthly(html_text: str, out_dir: Path, stamp: dt.datetime,
         except Exception as exc:                       # noqa: BLE001
             print(f"  (monthly PDF skipped: {type(exc).__name__}: {exc})")
     return written
+
+
+def attribution_section(log: pd.DataFrame,
+                        prices: dict,
+                        bench: pd.DataFrame) -> str:
+    """Why the picks worked, not just whether they did.
+
+    An IC says the ranking had content. It does not say whether the return came
+    from stock selection or from being in the market while it rose. Momentum in
+    particular loads on sector rotation, so returns that look like selection are
+    frequently exposure.
+
+    Returns markdown, or an empty string when nothing can be attributed.
+    """
+    s = attrib.attribute_log(log, prices, bench)
+    if s.n == 0:
+        return ""
+
+    lines = [
+        "", "## Return attribution", "",
+        f"{s.n} trades decomposed into market, sector and stock-specific "
+        "components. Beta is estimated from data before each entry, never over "
+        "the holding period being explained.", "",
+        "| Component | Mean contribution |",
+        "|---|---|",
+        f"| Market | {s.mean_market:+.2f}% |",
+        f"| Sector | {s.mean_sector:+.2f}% |",
+        f"| **Signal (idiosyncratic)** | **{s.mean_idio:+.2f}%** |",
+        f"| Total | {s.mean_total:+.2f}% |",
+        "",
+        f"**Signal share: {s.idio_share_pct:.0f}%** (t = {s.idio_t_stat})",
+        "", s.message, "",
+    ]
+    for note in s.notes:
+        lines.append(f"- {note}")
+    return "\n".join(lines)

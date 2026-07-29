@@ -8,7 +8,7 @@ name: SwingScope daily tracker
 # whose weekly non-overlapping windows are the actual statistical evidence.
 on:
   schedule:
-    - cron: '30 3 * * 1-5'
+    - cron: '30 3 * * 2-5'
   workflow_dispatch:
 
 permissions:

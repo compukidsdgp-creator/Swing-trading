@@ -47,6 +47,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+import resilience as resil
+
 # Moves beyond this in a single session are almost certainly unadjusted
 # corporate actions rather than real price changes.
 SPLIT_SUSPECT_THRESHOLD = 0.35
@@ -218,14 +220,25 @@ def fetch(tickers: tuple[str, ...], *, period: str = "2y",
     if n == 0:
         return FetchResult({}, "none", 0, 0)
 
-    # --- Primary ---
-    try:
-        frames = _fetch_yfinance(tickers, period, min_bars)
-    except Exception as exc:                                   # noqa: BLE001
+    # --- Primary, with retry on transient failures ---
+    #
+    # yfinance rate-limits without warning, and the same call a minute later
+    # usually succeeds. Previously one failure meant an immediate abort.
+    #
+    # Persistent failures — a changed signature, a missing attribute — still
+    # raise at once. Retrying those turns a fast failure into a slow one with
+    # the same outcome.
+    frames, stats = resil.call_with_retry(
+        _fetch_yfinance, tickers, period, min_bars,
+        max_attempts=3, base_delay=5.0, max_delay=45.0,
+    )
+    primary_error = None
+    if frames is None:
         frames = {}
-        primary_error = f"{type(exc).__name__}: {exc}"
-    else:
-        primary_error = None
+        primary_error = stats.last_error
+        if stats.attempts > 1:
+            primary_error += f" (after {stats.attempts} attempts, "
+            primary_error += f"{stats.classified})"
 
     coverage = len(frames) / n
     if coverage >= min_coverage:

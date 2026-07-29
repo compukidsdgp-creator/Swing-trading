@@ -53,6 +53,11 @@ except ImportError:
     sys.modules["streamlit"] = _fake
 
 import bucket as bk          # noqa: E402
+import circuit as cir        # noqa: E402
+import crash_protection as cp  # noqa: E402
+import datasource as dsrc    # noqa: E402
+import earnings as earn      # noqa: E402
+import tiers as tr           # noqa: E402
 import config                # noqa: E402
 import forward_log as flog   # noqa: E402
 import governance as gov    # noqa: E402

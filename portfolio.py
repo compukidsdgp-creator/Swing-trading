@@ -54,6 +54,21 @@ import pandas as pd
 
 # Rebalancing thresholds. Wide enough that ordinary fluctuation does not
 # trigger trading — every rebalance costs a full round trip.
+# --------------------------------------------------------------------------
+# Portfolio-level exposure
+#
+# Per-position caps alone do not bound total exposure. ATR-based sizing with a
+# tight stop produces a large position: a 2.6% ATR at a 2.0x multiple gives a
+# ~5% stop, so risking 1% of capital implies a 20% position. Ten of those sum
+# to 200% — implicit leverage nobody chose.
+#
+# Every individual cap can be satisfied while the portfolio is twice its
+# capital. This is the missing constraint.
+# --------------------------------------------------------------------------
+MAX_GROSS_EXPOSURE = 1.00         # no leverage by default
+MAX_PORTFOLIO_RISK = 0.06         # 6% of capital if every stop hits at once
+MIN_CASH_BUFFER = 0.05            # keep 5% for charges and adverse fills
+
 MAX_POSITION_WEIGHT = 0.15        # trim above 15% of portfolio equity
 DRIFT_TOLERANCE = 0.05            # ignore drift below 5 percentage points
 MIN_TRADE_VALUE = 5_000           # do not bother below this
@@ -332,6 +347,170 @@ def compare_stop_types(entry: float, closes: pd.Series, atr: pd.Series,
         "stopped": t.triggered,
     })
     return pd.DataFrame(rows)
+
+
+# --------------------------------------------------------------------------
+# Portfolio-level exposure cap
+# --------------------------------------------------------------------------
+@dataclass
+class ExposureResult:
+    positions: pd.DataFrame
+    gross_exposure: float
+    total_risk_pct: float
+    scale_applied: float
+    binding_constraint: str
+    cash_remaining: float
+    dropped: list[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
+
+    @property
+    def leveraged(self) -> bool:
+        return self.gross_exposure > 1.0
+
+
+def apply_exposure_cap(
+    positions: pd.DataFrame,
+    capital: float,
+    *,
+    max_gross: float = MAX_GROSS_EXPOSURE,
+    max_risk: float = MAX_PORTFOLIO_RISK,
+    cash_buffer: float = MIN_CASH_BUFFER,
+    method: str = "scale",
+    vol_scale: float = 1.0,
+) -> ExposureResult:
+    """Bound total exposure and total risk across the whole book.
+
+    Two constraints, whichever binds first:
+
+      **Gross exposure** — sum of position values against capital. Above 1.0
+      means borrowing. Default refuses it.
+
+      **Total risk** — sum of (entry - stop) x qty. Ten positions each risking
+      1% is 10% of capital gone if the market gaps through every stop at once,
+      which is precisely what happens in the crashes momentum is exposed to.
+      6% is a more defensible ceiling.
+
+    Args:
+        positions: needs `ticker`, `qty`, `price`; `stop` enables the risk check.
+        method: 'scale' cuts every position proportionally, keeping the same
+                names. 'drop' removes the lowest-ranked until it fits, keeping
+                full size on the rest.
+        vol_scale: multiplier from crash_protection, applied first.
+
+    Returns positions with `qty_final` and `value_final` columns added.
+    """
+    if positions is None or positions.empty:
+        return ExposureResult(pd.DataFrame(), 0.0, 0.0, 1.0, "none", capital)
+
+    df = positions.copy()
+    for c in ("qty", "price"):
+        if c not in df.columns:
+            return ExposureResult(df, 0.0, 0.0, 1.0,
+                                  f"missing column '{c}'", capital,
+                                  notes=[f"Cannot size without '{c}'."])
+
+    df["qty"] = pd.to_numeric(df["qty"], errors="coerce").fillna(0)
+    df["price"] = pd.to_numeric(df["price"], errors="coerce").fillna(0)
+
+    # Volatility scaling first — it is a decision about how much risk to take
+    # at all, logically prior to how it is distributed.
+    notes = []
+    if vol_scale != 1.0:
+        df["qty"] = (df["qty"] * vol_scale).round()
+        notes.append(f"Volatility scaling applied first: {vol_scale:.0%} of nominal.")
+
+    df["value"] = df["qty"] * df["price"]
+    gross_before = float(df["value"].sum()) / capital if capital else 0.0
+
+    has_stop = "stop" in df.columns
+    if has_stop:
+        df["stop"] = pd.to_numeric(df["stop"], errors="coerce")
+        df["risk"] = (df["price"] - df["stop"]).clip(lower=0) * df["qty"]
+        risk_before = float(df["risk"].sum()) / capital if capital else 0.0
+    else:
+        risk_before = 0.0
+        notes.append("No stop column — total risk not checked, only exposure.")
+
+    usable = max_gross * (1 - cash_buffer)
+    scale_gross = usable / gross_before if gross_before > usable else 1.0
+    scale_risk = (max_risk / risk_before
+                  if has_stop and risk_before > max_risk else 1.0)
+
+    scale = min(scale_gross, scale_risk)
+    binding = ("none" if scale >= 1.0
+               else "gross exposure" if scale_gross <= scale_risk
+               else "total risk")
+
+    dropped = []
+    if scale < 1.0 and method == "drop":
+        # Keep full size, shed the lowest-ranked names until it fits
+        order = ("Rank" if "Rank" in df.columns else
+                 "rank" if "rank" in df.columns else None)
+        d = df.sort_values(order) if order else df
+        keep, running_val, running_risk = [], 0.0, 0.0
+        for idx, r in d.iterrows():
+            v = float(r["value"])
+            rk = float(r["risk"]) if has_stop else 0.0
+            if (running_val + v) / capital > usable:
+                dropped.append(str(r.get("ticker", idx)))
+                continue
+            if has_stop and (running_risk + rk) / capital > max_risk:
+                dropped.append(str(r.get("ticker", idx)))
+                continue
+            keep.append(idx)
+            running_val += v
+            running_risk += rk
+        df = df.loc[keep]
+        df["qty_final"] = df["qty"]
+        scale = 1.0
+        if dropped:
+            notes.append(f"Dropped {len(dropped)} lowest-ranked position(s) to fit: "
+                         f"{', '.join(dropped[:5])}"
+                         + (" …" if len(dropped) > 5 else ""))
+    else:
+        # Floor, never round. Rounding up can push the portfolio marginally
+        # past a cap (6.01% against a 6.00% limit was observed in testing), and
+        # a cap that can be exceeded is not a cap.
+        df["qty_final"] = np.floor(df["qty"] * scale).astype(int)
+        if scale < 1.0:
+            notes.append(f"Every position scaled to {scale:.0%} — "
+                         f"{binding} was the binding constraint.")
+
+    df["value_final"] = df["qty_final"] * df["price"]
+    gross_after = float(df["value_final"].sum()) / capital if capital else 0.0
+    risk_after = (float(((df["price"] - df["stop"]).clip(lower=0)
+                         * df["qty_final"]).sum()) / capital
+                  if has_stop and capital else 0.0)
+
+    if gross_before > 1.0:
+        notes.insert(0, (
+            f"Unconstrained sizing implied {gross_before:.0%} gross exposure — "
+            "that is leverage, and it arises silently because per-position caps "
+            "say nothing about the sum."))
+    if has_stop and risk_before > max_risk:
+        notes.append(
+            f"Unconstrained total risk was {risk_before:.1%} of capital. In a "
+            "gap-down every stop fills at once, so this is a real number rather "
+            "than a theoretical one.")
+
+    return ExposureResult(
+        df, round(gross_after, 4), round(risk_after, 4), round(scale, 4),
+        binding, round(capital * (1 - gross_after), 0), dropped, notes)
+
+
+def exposure_summary(res: ExposureResult, capital: float) -> dict:
+    """Reader-friendly view of what the cap did."""
+    return {
+        "positions": len(res.positions),
+        "gross_exposure_pct": round(res.gross_exposure * 100, 1),
+        "total_risk_pct": round(res.total_risk_pct * 100, 2),
+        "scale_applied_pct": round(res.scale_applied * 100, 1),
+        "binding_constraint": res.binding_constraint,
+        "cash_remaining": res.cash_remaining,
+        "cash_pct": round(res.cash_remaining / capital * 100, 1) if capital else 0,
+        "dropped": len(res.dropped),
+        "leveraged": res.leveraged,
+    }
 
 
 # --------------------------------------------------------------------------

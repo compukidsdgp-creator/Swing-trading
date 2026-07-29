@@ -527,6 +527,43 @@ def test_partial_bar_immunity(iters: int) -> None:
             "no stock above its 50 EMA — implausible, indicates the NaN bug"
 
 
+def test_exposure_never_leveraged(iters: int) -> None:
+    """Gross exposure must never exceed capital without explicit opt-in.
+
+    Per-position caps do not bound the sum. ATR sizing with a tight stop
+    produces a large position — a 2.6% ATR at 2.0x gives a ~5% stop, so risking
+    1% implies a 20% position, and ten of those is 200%. Every individual cap
+    can pass while the book is twice its capital.
+    """
+    import portfolio as pf
+
+    rng = np.random.default_rng(71)
+    for k in range(min(iters, 30)):
+        n = int(rng.integers(3, 16))
+        price = rng.uniform(50, 3000, n)
+        stop = price * rng.uniform(0.90, 0.97, n)
+        capital = float(rng.uniform(100_000, 5_000_000))
+        # Size by risk, exactly as the app does — this is what over-allocates
+        risk_per_share = price - stop
+        qty = np.maximum(1, ((capital * 0.01) / risk_per_share).astype(int))
+
+        pos = pd.DataFrame({
+            "ticker": [f"T{j}" for j in range(n)],
+            "Rank": range(1, n + 1),
+            "qty": qty, "price": price, "stop": stop,
+        })
+
+        for method in ("scale", "drop"):
+            res = pf.apply_exposure_cap(pos, capital, method=method)
+            assert res.gross_exposure <= pf.MAX_GROSS_EXPOSURE + 1e-6, \
+                f"{method}: gross exposure {res.gross_exposure:.2%} exceeds cap"
+            assert res.total_risk_pct <= pf.MAX_PORTFOLIO_RISK + 1e-6, \
+                f"{method}: total risk {res.total_risk_pct:.2%} exceeds cap"
+            assert not res.leveraged, f"{method}: portfolio is leveraged"
+            if not res.positions.empty:
+                assert (res.positions["qty_final"] >= 0).all(), "negative quantity"
+
+
 def test_universe_trim_unbiased(iters: int) -> None:
     import universe as uni
     import string
@@ -566,6 +603,7 @@ def main(iters: int = 100) -> int:
         ("data quality: detects defects", test_data_quality_detects),
         ("universe: trim unbiased", test_universe_trim_unbiased),
         ("partial bar immunity", test_partial_bar_immunity),
+        ("exposure never leveraged", test_exposure_never_leveraged),
         ("static: no DataFrame truthiness", test_no_dataframe_truthiness),
         ("daily tracker: integrity", test_daily_tracker_integrity),
     ]

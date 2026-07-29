@@ -461,25 +461,29 @@ def run(args) -> tuple[int, list[str], dict]:
     if args.daily_track:
         say("\n[6b] Daily tracker")
         try:
-            tr = dtrack.run(
+            # NOTE: named track_res, not tr. `tr` is the module alias for
+            # tiers — assigning it here would make tr local to this whole
+            # function and break the earlier tr.params() call.
+            track_res = dtrack.run(
                 b.picks if not b.is_empty else pd.DataFrame(),
                 data, regime_state=reg.state,
                 notes=f"model={args.model}",
             )
-            say(f"  +{tr.new_observations} observations, +{tr.new_price_rows} price rows")
-            say(f"  tracking {tr.tracked_tickers} tickers")
-            if tr.excel_path:
-                say(f"  workbook: {tr.excel_path}")
-                ctx["tracker_excel"] = tr.excel_path
+            say(f"  +{track_res.new_observations} observations, "
+                f"+{track_res.new_price_rows} price rows")
+            say(f"  tracking {track_res.tracked_tickers} tickers")
+            if track_res.excel_path:
+                say(f"  workbook: {track_res.excel_path}")
+                ctx["tracker_excel"] = track_res.excel_path
             else:
                 say("  NO WORKBOOK produced — nothing will be attached to the "
                     "notification. Check for an openpyxl error above.")
             ctx["tracker_stats"] = {
-                "new_observations": tr.new_observations,
-                "tracked_tickers": tr.tracked_tickers,
-                "total_rows": len(tr.observations),
-                "days": int(tr.observations["obs_date"].nunique())
-                        if not tr.observations.empty else 0,
+                "new_observations": track_res.new_observations,
+                "tracked_tickers": track_res.tracked_tickers,
+                "total_rows": len(track_res.observations),
+                "days": int(track_res.observations["obs_date"].nunique())
+                        if not track_res.observations.empty else 0,
             }
         except Exception as exc:                               # noqa: BLE001
             say(f"  tracker failed ({type(exc).__name__}: {exc}) — continuing")

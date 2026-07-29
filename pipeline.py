@@ -110,6 +110,35 @@ def run(args) -> tuple[int, list[str], dict]:
         print(msg)
         log_lines.append(msg)
 
+    def abort(reason: str) -> tuple[int, list[str], dict]:
+        """Stop the run, but never silently.
+
+        Five paths can abort before the notify stage. Previously each simply
+        returned, so the run produced no message at all — and because the
+        workflow used continue-on-error, the failure alert never fired either.
+        Complete silence, indistinguishable from a quiet market.
+
+        An abort is information. It gets sent.
+        """
+        say(f"\n  ABORT: {reason}")
+        ctx["aborted"] = reason
+        if getattr(args, "notify", False):
+            try:
+                notify.dispatch(
+                    subject=f"SwingScope — run aborted ({dt.date.today():%d %b})",
+                    html_body=f"<h2>Run aborted</h2><p>{reason}</p>"
+                              "<p>No picks were produced. The forward log did "
+                              "not advance this run.</p>",
+                    text_body=(f"⚠️ *SwingScope — run aborted*\n\n{reason}\n\n"
+                               "No picks produced. The forward log did not "
+                               "advance."),
+                    channels=args.channels,
+                )
+                say("  abort notification sent")
+            except Exception as exc:                           # noqa: BLE001
+                say(f"  could not send abort notice: {type(exc).__name__}")
+        return 1, log_lines, ctx
+
     say("=" * 66)
     say(f"SwingScope pipeline — {dt.datetime.now():%Y-%m-%d %H:%M}")
     say("=" * 66)
@@ -121,8 +150,7 @@ def run(args) -> tuple[int, list[str], dict]:
     model_id = ("momentum_12_1_v2" if args.model == "momentum" else "composite_v1")
     permitted, reason = gov.check_model_permitted(model_id, "research shortlist")
     if not permitted:
-        say(f"\nBLOCKED: {reason}")
-        return 1, log_lines, ctx
+        return abort(f"Model gate: {reason}")
     ctx["model_id"] = model_id
 
     # --- 1. Universe ---
@@ -162,8 +190,8 @@ def run(args) -> tuple[int, list[str], dict]:
     bench = _fetch((config.BENCHMARK,), period=period).get(config.BENCHMARK)
     say(f"  {len(data)} of {len(tickers)} tickers returned usable history")
     if not data:
-        say("  ABORT: no price data (yfinance rate limit?)")
-        return 1, log_lines, ctx
+        return abort("No price data returned. yfinance may be rate-limiting, "
+                     "and the bhavcopy fallback found nothing usable either.")
 
     # --- Health gate ---
     #
@@ -177,10 +205,10 @@ def run(args) -> tuple[int, list[str], dict]:
     if not hc.passed:
         for f in hc.failures:
             say(f"  FAIL {f}")
-        say("\n  ABORT: health checks failed. Producing picks from bad or stale "
-            "data would corrupt the forward log, which is the one thing that "
-            "cannot be reconstructed.")
-        return 1, log_lines, ctx
+        return abort(
+            "Health checks failed: " + "; ".join(hc.failures)[:200]
+            + ". Producing picks from stale or sparse data would corrupt the "
+              "forward log, which cannot be reconstructed.")
     say(f"  health: {sum(hc.checks.values())}/{len(hc.checks)} checks passed")
 
     # --- Provenance ---
@@ -286,8 +314,7 @@ def run(args) -> tuple[int, list[str], dict]:
             m["Ticker"] = tkr.replace(".NS", "")
             rows.append(m)
         if not rows:
-            say("  ABORT: no stocks produced valid scores")
-            return 1, log_lines, ctx
+            return abort("No stocks produced valid scores.")
         ranked = pd.DataFrame(rows).sort_values("Score", ascending=False)
         ranked = ranked[ranked["Above_50EMA"]]
         say(f"  scored {len(rows)}, {len(ranked)} above their 50 EMA")
@@ -344,6 +371,7 @@ def run(args) -> tuple[int, list[str], dict]:
 
     if b.is_empty:
         say("\n  No picks. Taking no positions is a valid, and often correct, outcome.")
+        ctx["empty_bucket"] = True
 
     # --- 6. News ---
     say("\n[6/10] News sentiment")

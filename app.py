@@ -55,12 +55,14 @@ def _optional(name):
 
 
 brk = _optional("broker")
+oc = _optional("outcomes")
 bhav = _optional("bhavcopy")
 costs = _optional("costs")
 hz = _optional("horizon")
 
 _MISSING = [n for n, m in (("broker", brk), ("bhavcopy", bhav),
-                           ("costs", costs), ("horizon", hz)) if m is None]
+                           ("costs", costs), ("horizon", hz),
+                           ("outcomes", oc)) if m is None]
 
 
 def _unavailable(module, purpose):
@@ -1468,6 +1470,128 @@ def render_data_quality(cfg: dict) -> None:
 
 
 # --------------------------------------------------------------------------
+# Outcomes tab — conditional distributions, not predictions
+# --------------------------------------------------------------------------
+def render_outcomes(cfg: dict) -> None:
+    if oc is None:
+        st.subheader("Outcomes")
+        _unavailable("outcomes", "It shows historical outcome distributions "
+                                 "conditional on momentum decile.")
+        return
+
+    st.subheader("Outcomes: what happened to similar cases")
+    st.caption(
+        "The closest thing to prediction this data honestly supports. Not "
+        "'this stock will rise 8%' — rather, 'of stocks that historically "
+        "scored in this decile, here is the full range of what happened next'."
+    )
+
+    st.warning(
+        "**This is not a prediction tab, and the distinction is not pedantry.** "
+        "With an IC of 0.031 the signal explains roughly 0.1% of the variance in "
+        "forward returns. A stated probability would carry a confidence interval "
+        "spanning the coin flip. What follows are historical frequencies with "
+        "their intervals shown — read the interval, not the point estimate.",
+        icon="⚠️",
+    )
+
+    c = st.columns(3)
+    horizon = c[0].slider("Horizon (days)", 5, 90, 30, key="oc_h")
+    years = c[1].select_slider("Period", ["2y", "5y", "10y"], value="5y", key="oc_y")
+    n_stocks = c[2].slider("Stocks", 50, 300, 150, 25, key="oc_n")
+
+    if not st.button("Build outcome distributions", key="oc_run"):
+        st.info("Takes 3–6 minutes. Uses only data available at each historical "
+                "observation point — the same no-lookahead discipline as validation.")
+        return
+
+    tickers = tuple(cfg["tickers"][:n_stocks])
+    with st.spinner(f"Fetching {years} for {len(tickers)} tickers…"):
+        frames = fetch_history(tickers, period=years)
+        bench = fetch_history((config.BENCHMARK,), period=years).get(config.BENCHMARK)
+    if not frames:
+        st.error("No data returned.")
+        return
+
+    with st.spinner("Building distributions…"):
+        res = oc.build_distributions(frames, bench, horizon=horizon)
+
+    if res.by_decile.empty:
+        st.error("; ".join(res.notes) or "Could not build distributions.")
+        return
+
+    m = st.columns(4)
+    m[0].metric("Windows", res.n_windows)
+    m[1].metric("Observations", f"{len(res.raw_outcomes):,}")
+    m[2].metric("Universe mean", f"{res.universe_mean:+.2f}%")
+    m[3].metric("Universe hit rate", f"{res.universe_hit_rate:.1f}%")
+
+    for n in res.notes:
+        st.caption(f"· {n}")
+
+    st.markdown("##### Outcomes by momentum decile")
+    st.caption(
+        "`excess_pct` is the column that matters — raw returns mostly reflect "
+        "market drift. Where the excess interval spans zero, no edge is "
+        "demonstrated at this sample size."
+    )
+    show = res.by_decile[["decile", "n", "mean_return_pct", "hit_rate_pct",
+                          "hit_ci_low", "hit_ci_high", "excess_pct",
+                          "excess_ci_low", "excess_ci_high", "p10", "p90",
+                          "overlap_with_d1"]]
+    st.dataframe(
+        show, hide_index=True, use_container_width=True,
+        column_config={
+            "excess_pct": st.column_config.NumberColumn("Excess %", format="%+.3f"),
+            "hit_rate_pct": st.column_config.NumberColumn("Hit %", format="%.1f"),
+            "overlap_with_d1": st.column_config.NumberColumn(
+                "Overlap w/ D1", format="%.2f",
+                help="1.00 means the outcome distributions are identical — the "
+                     "signal separates nothing."),
+        },
+    )
+
+    st.markdown("##### Excess return by decile")
+    st.bar_chart(res.by_decile.set_index("decile")["excess_pct"])
+
+    st.markdown("##### The overlap problem")
+    top = res.by_decile.iloc[-1]
+    ov = top["overlap_with_d1"]
+    st.metric("Top vs bottom decile distribution overlap", f"{ov:.0%}")
+    if ov > 0.8:
+        st.error(
+            f"**{ov:.0%} overlap.** The best and worst deciles produce almost "
+            "the same distribution of outcomes. Momentum shifts the odds "
+            "slightly across many trades; it does not identify winners. Any "
+            "single pick is close to a coin flip, and no amount of conviction "
+            "changes that.", icon="🎲",
+        )
+
+    st.markdown("##### Look up a score")
+    score = st.slider("Percentile score", 0, 100, 90, key="oc_s")
+    o = oc.outcome_for_score(res, score)
+    if "error" in o:
+        st.warning(o["error"])
+    else:
+        k = st.columns(3)
+        k[0].metric("Rose", f"{o['rose_pct_of_time']}%",
+                    help=f"Range: {o['hit_rate_range']}")
+        k[1].metric("Median outcome", f"{o['median_outcome_pct']:+.2f}%")
+        k[2].metric("Excess over universe", f"{o['excess_over_universe_pct']:+.2f}%",
+                    help=f"Range: {o['excess_range']}")
+        st.caption(f"Typical range (middle 50%): {o['typical_range_pct']} · "
+                   f"middle 80%: {o['worst_decile_10pct']}% to "
+                   f"{o['best_decile_10pct']}%")
+        st.info(o["caveat"], icon="📊")
+
+    st.markdown("##### Calibration")
+    cal = oc.calibration_check(res)
+    if not cal.empty:
+        st.dataframe(cal, hide_index=True, use_container_width=True)
+        st.caption(cal.iloc[0]["interpretation"])
+
+
+# --------------------------------------------------------------------------
 # Forward log tab — the only evidence that cannot be overfitted
 # --------------------------------------------------------------------------
 def render_forward_log(cfg: dict, shortlist: pd.DataFrame) -> None:
@@ -2380,7 +2504,7 @@ def main() -> None:
         icon="⚠️",
     )
 
-    tabs = st.tabs(["🔍 Screener", "📊 Detail", "🧪 Backtest", "🔬 Validation", "📋 Forward log", "💼 Broker", "📰 News", "📓 Journal", "❓ Method"])
+    tabs = st.tabs(["🔍 Screener", "📊 Detail", "🧪 Backtest", "🔬 Validation", "🎲 Outcomes", "📋 Forward log", "💼 Broker", "📰 News", "📓 Journal", "❓ Method"])
 
     with tabs[0]:
         shortlist = render_screener(cfg)
@@ -2405,14 +2529,16 @@ def main() -> None:
         st.divider()
         render_true_cost(cfg)
     with tabs[4]:
-        render_forward_log(cfg, shortlist)
+        render_outcomes(cfg)
     with tabs[5]:
-        render_broker()
+        render_forward_log(cfg, shortlist)
     with tabs[6]:
-        render_news(cfg, shortlist)
+        render_broker()
     with tabs[7]:
-        render_journal()
+        render_news(cfg, shortlist)
     with tabs[8]:
+        render_journal()
+    with tabs[9]:
         st.markdown(config.METHOD_DOC)
 
 

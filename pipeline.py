@@ -451,6 +451,51 @@ def run(args) -> tuple[int, list[str], dict]:
         except Exception as exc:                               # noqa: BLE001
             say(f"  tracker failed ({type(exc).__name__}: {exc}) — continuing")
 
+    # --- 6c. Earnings exclusion ---
+    #
+    # A hard filter, not a flag. Every pick in an earlier bucket carried an
+    # earnings warning and the system presented all of them — a flag that never
+    # stops anything is decoration.
+    #
+    # A results surprise moves an Indian mid-cap 8-15% in a session. The
+    # momentum edge over the whole 30-day hold is about 2%. Holding through an
+    # announcement is an earnings bet the model has no view on.
+    if not b.is_empty and not args.skip_earnings:
+        say("\n[6c] Earnings window")
+        try:
+            season = earn.next_season_gap()
+            if season.get("in_season"):
+                say(f"  results season until {season['season_ends']} "
+                    f"({season['days_until_clear']} days) — expect exclusions")
+
+            scr = earn.screen_bucket(b.picks, horizon_days=args.horizon)
+            say(f"  {scr.checked} checked: {len(scr.clear)} clear, "
+                f"{len(scr.excluded)} report inside the window, "
+                f"{len(scr.unknown)} unknown")
+
+            for _, r in scr.excluded.iterrows():
+                say(f"    EXCLUDE {r['Ticker']}: reports "
+                    f"{r.get('earnings_date')} ({r.get('days_to_earnings')} days)")
+            for _, r in scr.unknown.iterrows():
+                say(f"    VERIFY  {r['Ticker']}: no date retrievable")
+
+            if not scr.excluded.empty:
+                keep = pd.concat([scr.clear, scr.unknown], ignore_index=True) \
+                    if not scr.unknown.empty else scr.clear
+                if not keep.empty:
+                    keep = keep.sort_values("Score", ascending=False).reset_index(drop=True)
+                    keep["Rank"] = range(1, len(keep) + 1)
+                b.picks = keep
+                b.actual_size = len(keep)
+                b.notes.append(
+                    f"{len(scr.excluded)} pick(s) excluded — reporting inside "
+                    "the holding window.")
+            for n in scr.notes:
+                say(f"  · {n[:100]}")
+        except Exception as exc:                               # noqa: BLE001
+            say(f"  earnings check unavailable ({type(exc).__name__}) — "
+                "picks NOT screened for results dates")
+
     # --- 7. Log ---
     say("\n[7/10] Forward log")
     log = flog.from_csv(LOG_PATH.read_bytes()) if LOG_PATH.exists() else flog.empty_log()
@@ -614,6 +659,10 @@ def main() -> int:
     p.add_argument("--skip-crash-protection", action="store_true",
                    help="skip volatility scaling. NOT recommended — momentum "
                         "crashes are the dominant tail risk for this strategy.")
+    p.add_argument("--skip-earnings", action="store_true",
+                   help="skip the earnings-window exclusion. NOT recommended: "
+                        "a results surprise moves a stock 8-15%% in a session "
+                        "against a ~2%% momentum edge over the whole hold.")
     p.add_argument("--skip-circuit", action="store_true",
                    help="skip the exit-liquidity check (NOT recommended — it "
                         "prevents picks whose stop cannot fill inside the "

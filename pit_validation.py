@@ -108,6 +108,21 @@ def validate_pit(
         frames: {ticker: OHLCV} price history, superset of any universe.
         bhav_frames: {date: bhavcopy DataFrame} from bhavcopy.load_range().
     """
+    # Checked first. During development a synthetic cache with placeholder
+    # symbols was left in place; without this it would have produced a
+    # confident, entirely meaningless result.
+    if bhav_frames:
+        sample = bhav_frames[sorted(bhav_frames)[0]]
+        if "symbol" in sample.columns:
+            syms = set(sample["symbol"].astype(str).head(50))
+            if any(s.startswith(("SURV", "DEAD", "STK", "TEST", "S0", "T0"))
+                   for s in syms):
+                return PITResult(0, 0, 0, 0, 0, 0, 0, 0, notes=[
+                    "SYNTHETIC TEST DATA detected in the bhavcopy cache "
+                    f"(symbols like {sorted(syms)[:3]}). Refusing to validate "
+                    "against placeholder data. Clear the cache and download "
+                    "real bhavcopies first."])
+
     enriched = {}
     for t, df in frames.items():
         if df is None or len(df) < MIN_HISTORY + horizon + 5:

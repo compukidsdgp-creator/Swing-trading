@@ -39,6 +39,7 @@ SYMBOL/TOTTRDQTY; newer ones use TckrSymb/TtlTradgVol. Both are handled.
 
 from __future__ import annotations
 
+import datetime as dt
 import io
 import zipfile
 from dataclasses import dataclass
@@ -310,6 +311,40 @@ def universe_churn(frames: dict[pd.Timestamp, pd.DataFrame],
         })
         prev = members
     return pd.DataFrame(rows)
+
+
+def load_cached(start: str | dt.date | None = None,
+                end: str | dt.date | None = None) -> dict:
+    """Load bhavcopies from the local cache only. Never touches the network.
+
+    Validation must be reproducible and must not depend on a live service, so
+    this reads what has already been downloaded and nothing else.
+
+    Returns {date: DataFrame} keyed by datetime.date.
+    """
+    out: dict = {}
+    if not CACHE_DIR.exists():
+        return out
+
+    lo = pd.Timestamp(start).date() if start else None
+    hi = pd.Timestamp(end).date() if end else None
+
+    for f in sorted(CACHE_DIR.rglob("bhav_*.parquet")):
+        try:
+            d = dt.datetime.strptime(f.stem.replace("bhav_", ""), "%Y%m%d").date()
+        except ValueError:
+            continue
+        if lo and d < lo:
+            continue
+        if hi and d > hi:
+            continue
+        try:
+            df = pd.read_parquet(f)
+        except Exception:                                      # noqa: BLE001
+            continue
+        if not df.empty:
+            out[d] = df
+    return out
 
 
 def cache_stats() -> dict:

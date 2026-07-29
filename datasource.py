@@ -94,11 +94,22 @@ def _fetch_yfinance(tickers: tuple[str, ...], period: str,
         except (KeyError, IndexError):
             continue
         df = df.dropna(how="all")
+        df.columns = [str(c).title() for c in df.columns]
+        if not {"Open", "High", "Low", "Close", "Volume"}.issubset(df.columns):
+            continue
+
+        # Drop partial bars.
+        #
+        # During market hours yfinance returns a row for the current session
+        # with Open/High/Low populated but Close still NaN. dropna(how="all")
+        # leaves it, and every downstream last-row read then yields NaN:
+        # `NaN > NaN` is False, so Above_50EMA becomes False for EVERY stock,
+        # and `NaN >= turnover` rejects every stock. The screener silently
+        # returns nothing.
+        df = df.dropna(subset=["Close"])
         if df.empty or len(df) < min_bars:
             continue
-        df.columns = [str(c).title() for c in df.columns]
-        if {"Open", "High", "Low", "Close", "Volume"}.issubset(df.columns):
-            out[t] = df
+        out[t] = df
     return out
 
 

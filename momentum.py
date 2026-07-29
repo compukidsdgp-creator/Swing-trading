@@ -191,6 +191,10 @@ def rank_universe(
             continue
 
         last = e.iloc[-1]
+        # Defensive: even with upstream fixes, refuse to rank on a NaN last bar
+        # rather than silently producing a False for every comparison.
+        if not np.isfinite(last["Close"]) or not np.isfinite(last.get("EMA50", np.nan)):
+            continue
         close = float(last["Close"])
         turnover = float(last.get("Turnover_Cr", 0) or 0)
         if turnover < min_turnover_cr:

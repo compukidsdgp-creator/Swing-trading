@@ -482,6 +482,51 @@ def test_daily_tracker_integrity(iters: int) -> None:
         assert list(obs.columns) == dtm.OBS_COLUMNS, "observation schema drifted"
 
 
+def test_partial_bar_immunity(iters: int) -> None:
+    """A NaN in the final bar must not silently empty the screener.
+
+    yfinance returns the current session with Close still NaN during market
+    hours. `dropna(how="all")` leaves that row, and every last-row read then
+    yields NaN — `NaN > NaN` is False, so Above_50EMA becomes False for EVERY
+    stock and the turnover filter rejects everything. The screener returns
+    nothing and gives no indication why.
+
+    This is the single most damaging silent-failure mode found in the system.
+    """
+    import momentum as momo
+
+    rng = np.random.default_rng(97)
+    for k in range(min(iters, 20)):
+        # Must exceed momentum.MIN_HISTORY_BARS (378) even after the poisoned
+        # bar is dropped, or an empty result is correct rather than a bug.
+        n = int(rng.integers(450, 700))
+        frames = {}
+        for j in range(12):
+            df = gen_ohlcv(n, seed=k * 20 + j, drift=0.001)
+            # Poison the last bar the way yfinance does
+            df.iloc[-1, df.columns.get_loc("Close")] = np.nan
+            df.iloc[-1, df.columns.get_loc("Volume")] = np.nan
+            frames[f"S{j}.NS"] = df
+
+        # Unsanitised input must be refused, never silently mis-ranked
+        r = momo.rank_universe(frames, min_turnover_cr=0.0,
+                               require_above_50ema=False, min_momentum=None)
+        if not r.empty:
+            assert not r["Turnover_Cr"].isna().any(), \
+                "NaN turnover leaked into the ranking"
+            assert r["Above_50EMA"].sum() > 0, \
+                "every Above_50EMA is False — the NaN comparison bug is back"
+
+        # Sanitised input must work normally
+        clean = {t: d.dropna(subset=["Close"]) for t, d in frames.items()}
+        rc = momo.rank_universe(clean, min_turnover_cr=0.0,
+                                require_above_50ema=False, min_momentum=None)
+        assert not rc.empty, "sanitised frames should still rank"
+        assert not rc["Turnover_Cr"].isna().any(), "NaN turnover after cleaning"
+        assert rc["Above_50EMA"].sum() > 0, \
+            "no stock above its 50 EMA — implausible, indicates the NaN bug"
+
+
 def test_universe_trim_unbiased(iters: int) -> None:
     import universe as uni
     import string
@@ -520,6 +565,7 @@ def main(iters: int = 100) -> int:
         ("sentiment: bounded", test_sentiment_bounds),
         ("data quality: detects defects", test_data_quality_detects),
         ("universe: trim unbiased", test_universe_trim_unbiased),
+        ("partial bar immunity", test_partial_bar_immunity),
         ("static: no DataFrame truthiness", test_no_dataframe_truthiness),
         ("daily tracker: integrity", test_daily_tracker_integrity),
     ]

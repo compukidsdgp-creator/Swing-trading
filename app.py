@@ -118,12 +118,16 @@ def fetch_history(tickers: tuple[str, ...], period: str = "1y") -> dict[str, pd.
             continue
 
         df = df.dropna(how="all")
-        if df.empty or len(df) < 60:
-            continue
-
         df.columns = [str(c).title() for c in df.columns]
         needed = {"Open", "High", "Low", "Close", "Volume"}
         if not needed.issubset(set(df.columns)):
+            continue
+
+        # Drop partial bars — yfinance returns the current session with Close
+        # still NaN during market hours, which makes every last-row read NaN
+        # and silently empties the screener.
+        df = df.dropna(subset=["Close"])
+        if df.empty or len(df) < 60:
             continue
 
         out[tkr] = df

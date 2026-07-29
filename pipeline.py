@@ -52,6 +52,7 @@ except ImportError:
     _fake.secrets = {}
     sys.modules["streamlit"] = _fake
 
+import breadth as brd        # noqa: E402
 import bucket as bk          # noqa: E402
 import circuit as cir        # noqa: E402
 import crash_protection as cp  # noqa: E402
@@ -239,6 +240,39 @@ def run(args) -> tuple[int, list[str], dict]:
     say(f"  Tiers permitted: {', '.join(sorted(reg.allowed_tiers))}")
     ctx.update(regime_state=reg.state, regime_desc=reg.description,
                regime_pct=reg.pct_from_200dma, breadth=reg.breadth)
+
+    # --- Breadth overlay ---
+    #
+    # The gate already uses one breadth number: share above the 50 DMA. That
+    # cannot distinguish a broad advance from an index carried by a handful of
+    # heavyweights, which is a materially different situation for a strategy
+    # that needs participation.
+    #
+    # Like the macro overlay, this can only TIGHTEN — with one documented
+    # exception, a confirmed Zweig thrust.
+    if not args.skip_breadth:
+        try:
+            bread = brd.analyse(data, bench)
+            ctx["breadth_reading"] = bread.to_dict()
+            say(f"  {brd.summary_line(bread)}")
+            for w in bread.warnings[:2]:
+                say(f"    ! {w[:100]}")
+            for n_ in bread.notes[:1]:
+                say(f"    · {n_[:100]}")
+
+            adj = brd.regime_adjustment(bread, reg.state)
+            if adj["changed"]:
+                say(f"  REGIME ADJUSTED by breadth: {reg.state} -> "
+                    f"{adj['adjusted_regime']}")
+                for r_ in adj["reasons"][:2]:
+                    say(f"      {r_[:95]}")
+                reg = rg.Regime(adj["adjusted_regime"], reg.above_200dma,
+                                reg.dma50_rising, reg.pct_from_200dma,
+                                reg.breadth)
+                ctx["regime_state"] = reg.state
+        except Exception as exc:                               # noqa: BLE001
+            say(f"  breadth overlay unavailable ({type(exc).__name__}) — "
+                "continuing on the price regime alone")
 
     # --- Macro overlay ---
     #
@@ -751,6 +785,8 @@ def main() -> int:
     p.add_argument("--no-balance", action="store_true",
                    help="take the top N by score instead of balancing tiers")
     p.add_argument("--skip-news", action="store_true")
+    p.add_argument("--skip-breadth", action="store_true",
+                   help="skip the breadth overlay on the regime gate")
     p.add_argument("--skip-macro", action="store_true",
                    help="skip the macro overlay on the regime gate")
     p.add_argument("--skip-crash-protection", action="store_true",

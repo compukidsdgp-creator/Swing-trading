@@ -2351,14 +2351,18 @@ def render_broker() -> None:
 
         allin = report.get("all_in_round_trip_pct")
         if allin:
-            comp = pd.DataFrame({
+            # Named cost_cmp, not comp — `comp` is the module alias for
+            # composite, and shadowing it here would break any later use of
+            # composite.* inside this function.
+            cost_cmp = pd.DataFrame({
                 "tier": ["large", "mid", "small"],
                 "assumed_pct": [report["assumed"][t] for t in ("large", "mid", "small")],
                 "measured_pct": [allin] * 3,
             })
-            comp["gap_pct"] = (comp["measured_pct"] - comp["assumed_pct"]).round(3)
+            cost_cmp["gap_pct"] = (cost_cmp["measured_pct"]
+                                   - cost_cmp["assumed_pct"]).round(3)
             st.markdown("**Assumed vs measured**")
-            st.dataframe(comp, hide_index=True, use_container_width=True)
+            st.dataframe(cost_cmp, hide_index=True, use_container_width=True)
             st.caption(
                 "If measured materially exceeds assumed, update `est_cost_pct` in "
                 "`tiers.py` — the cost model feeds position sizing and the "

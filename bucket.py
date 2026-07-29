@@ -163,6 +163,25 @@ def build(
 
     picks = df.loc[chosen].sort_values("Score", ascending=False).reset_index(drop=True)
     picks.insert(0, "Rank", range(1, len(picks) + 1))
+
+    # --- Stop loss and targets ---
+    #
+    # Computed here rather than in each consumer, so Telegram, the Excel diary
+    # and the HTML report all quote identical levels. The stop was previously
+    # only visible in the app's Detail tab and never reached any output.
+    #
+    # Stop = entry − (ATR × tier multiple). Wider for more volatile tiers,
+    # which is what makes every position risk the same rupee amount.
+    import tiers as _tr
+    if not picks.empty and {"Close", "ATR_pct", "Tier"}.issubset(picks.columns):
+        mults = picks["Tier"].map(lambda t: _tr.params(t)["atr_mult"])
+        atr_abs = picks["Close"] * picks["ATR_pct"] / 100.0
+        picks["Stop"] = (picks["Close"] - atr_abs * mults).round(2)
+        picks["Stop_pct"] = ((picks["Stop"] / picks["Close"] - 1) * 100).round(2)
+        risk = picks["Close"] - picks["Stop"]
+        # R-multiples: the levels at which the trade has earned 1x and 2x its risk
+        picks["Target_1R"] = (picks["Close"] + risk).round(2)
+        picks["Target_2R"] = (picks["Close"] + 2 * risk).round(2)
     if sector_lookup is not None:
         picks["Sector"] = picks["Ticker"].map(sector_lookup).fillna("—")
 
@@ -198,6 +217,8 @@ def to_text(bucket: Bucket, *, regime_desc: str = "") -> str:
     lines.append("")
 
     has_mom = "Momentum" in bucket.picks.columns
+    has_stop = "Stop" in bucket.picks.columns
+    has_targets = "Target_1R" in bucket.picks.columns
     for _, r in bucket.picks.iterrows():
         tier = str(r.get("Tier", ""))[:1].upper()
         # Show the raw momentum figure alongside the percentile. A score of 100
@@ -209,6 +230,14 @@ def to_text(bucket: Bucket, *, regime_desc: str = "") -> str:
             f"sc {int(r['Score'])}{mom} · ₹{r['Close']:,.0f} · "
             f"RSI {r['RSI']:.0f} · ATR {r['ATR_pct']:.1f}%"
         )
+        # The stop is the number that decides position size, so it belongs on
+        # its own line rather than buried in a run of statistics.
+        if has_stop:
+            lines.append(
+                f"    stop ₹{r['Stop']:,.0f} ({r['Stop_pct']:+.1f}%)"
+                + (f"  ·  1R ₹{r['Target_1R']:,.0f}"
+                   f"  ·  2R ₹{r['Target_2R']:,.0f}" if has_targets else "")
+            )
 
     if bucket.tier_counts:
         lines.append("")
@@ -219,5 +248,8 @@ def to_text(bucket: Bucket, *, regime_desc: str = "") -> str:
     for n in bucket.notes:
         if "Volatility scaling" in n:
             lines.append(n)
-    lines += ["", "Analytical view, not advice. EOD data — verify on your terminal."]
+    lines += ["",
+              "Stops are ATR-based: entry minus a tier-specific multiple of the "
+              "14-day range.",
+              "Analytical view, not advice. EOD data — verify on your terminal."]
     return "\n".join(lines)

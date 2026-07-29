@@ -50,7 +50,12 @@ EXCEL_PATH = Path("reports/daily_tracker.xlsx")
 
 OBS_COLUMNS = [
     "obs_date", "ticker", "rank", "tier", "score", "momentum_pct",
-    "regime", "ref_close", "sector", "cost_viable", "notes",
+    "regime", "ref_close",
+    # Stop and targets, carried through from the bucket. Previously the stop
+    # existed only in the app's Detail tab and never reached any output, so a
+    # recorded pick had no exit level attached to it.
+    "stop_loss", "stop_pct", "target_1r", "target_2r", "risk_per_share",
+    "sector", "cost_viable", "notes",
 ]
 
 PRICE_COLUMNS = ["date", "ticker", "open", "high", "low", "close", "volume"]
@@ -104,13 +109,20 @@ def record_bucket(
         row = pd.DataFrame([{
             "obs_date": d, "ticker": None, "rank": None, "tier": None,
             "score": None, "momentum_pct": None, "regime": regime_state,
-            "ref_close": None, "sector": None, "cost_viable": None,
+            "ref_close": None, "stop_loss": None, "stop_pct": None,
+            "target_1r": None, "target_2r": None, "risk_per_share": None,
+            "sector": None, "cost_viable": None,
             "notes": notes or "no picks qualified",
         }])
         return pd.concat([obs, row], ignore_index=True), 1
 
     rows = []
     for _, r in picks.iterrows():
+        close = r.get("Close")
+        stop = r.get("Stop")
+        risk = (round(float(close) - float(stop), 2)
+                if close is not None and stop is not None
+                and pd.notna(close) and pd.notna(stop) else None)
         rows.append({
             "obs_date": d,
             "ticker": r.get("Ticker"),
@@ -119,7 +131,12 @@ def record_bucket(
             "score": r.get("Score"),
             "momentum_pct": r.get("Momentum"),
             "regime": regime_state,
-            "ref_close": r.get("Close"),
+            "ref_close": close,
+            "stop_loss": stop,
+            "stop_pct": r.get("Stop_pct"),
+            "target_1r": r.get("Target_1R"),
+            "target_2r": r.get("Target_2R"),
+            "risk_per_share": risk,
             "sector": r.get("Sector"),
             "cost_viable": r.get("Cost_viable"),
             "notes": notes,
@@ -215,6 +232,23 @@ def performance(obs: pd.DataFrame, px: pd.DataFrame,
         row["max_gain_pct"] = round((float(fwd["high"].max()) / entry - 1) * 100, 2)
         row["max_drawdown_pct"] = round((float(fwd["low"].min()) / entry - 1) * 100, 2)
         row["sessions_tracked"] = len(fwd)
+
+        # Did the stop actually get hit, and did the targets get reached?
+        # Recording the stop is only useful if you can later see whether it
+        # would have fired.
+        stop = r.get("stop_loss")
+        if stop is not None and pd.notna(stop) and float(stop) > 0:
+            low = float(fwd["low"].min())
+            row["stop_loss"] = float(stop)
+            row["stop_hit"] = bool(low <= float(stop))
+            if row["stop_hit"]:
+                below = fwd[fwd["low"] <= float(stop)]
+                row["sessions_to_stop"] = (int(fwd.index.get_loc(below.index[0])) + 1
+                                           if len(below) else None)
+        for tgt, col in (("target_1r", "hit_1r"), ("target_2r", "hit_2r")):
+            v = r.get(tgt)
+            if v is not None and pd.notna(v) and float(v) > 0:
+                row[col] = bool(float(fwd["high"].max()) >= float(v))
         rows.append(row)
 
     return pd.DataFrame(rows)
@@ -287,6 +321,13 @@ def write_excel(obs: pd.DataFrame, px: pd.DataFrame, perf: pd.DataFrame,
                 summary.to_excel(xl, sheet_name="Summary", index=False)
             if not obs.empty:
                 obs.to_excel(xl, sheet_name="Daily picks", index=False)
+                # A focused sheet for the levels you actually act on
+                lvl = [c for c in ("obs_date", "ticker", "rank", "ref_close",
+                                   "stop_loss", "stop_pct", "risk_per_share",
+                                   "target_1r", "target_2r") if c in obs.columns]
+                if lvl:
+                    obs[lvl].dropna(subset=["ticker"]).to_excel(
+                        xl, sheet_name="Levels", index=False)
             if not perf.empty:
                 perf.sort_values("obs_date", ascending=False).to_excel(
                     xl, sheet_name="Performance", index=False)

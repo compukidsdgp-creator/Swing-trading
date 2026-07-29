@@ -152,13 +152,17 @@ def build_html(
                      'neutral or risk-off regime.</div>')
     else:
         cols = [c for c in ["Rank", "Ticker", "Tier", "Score", "Momentum", "Close",
+                            "Stop", "Stop_pct", "Target_1R",
                             "RSI", "ATR_pct", "Turnover_Cr"] if c in picks.columns]
         view = picks[cols].copy()
         if "Momentum" in view.columns:
             view["Momentum"] = view["Momentum"].map(lambda v: f"{v:+.1f}%")
         view = view.rename(columns={"ATR_pct": "ATR %", "Turnover_Cr": "₹Cr/day",
-                                    "Close": "Price ₹", "Momentum": "12-1 mom"})
+                                    "Close": "Price ₹", "Momentum": "12-1 mom",
+                                    "Stop": "Stop ₹", "Stop_pct": "Stop %",
+                                    "Target_1R": "1R ₹"})
         parts.append(_table(view, num_cols={"Rank", "Score", "12-1 mom", "Price ₹",
+                                            "Stop ₹", "Stop %", "1R ₹",
                                             "RSI", "ATR %", "₹Cr/day"}))
         parts.append('<div class="note">Recorded to the forward log before outcomes '
                      'exist. Confirm every level on your broker terminal &mdash; these '

@@ -1,0 +1,82 @@
+name: SwingScope pipeline
+
+# Weekly is the recommended cadence for a 15-20 day holding period.
+# Uncomment the daily line if you want it, understanding that the score barely
+# moves day to day and daily alerts mostly encourage overtrading.
+on:
+  schedule:
+    - cron: '30 3 * * 1'        # Mondays 09:00 IST — recommended
+    # - cron: '30 12 * * 1-5'   # weekdays 18:00 IST — daily, not recommended
+  workflow_dispatch:
+    inputs:
+      universe:
+        description: 'Universe'
+        default: 'Nifty 500'
+      size:
+        description: 'Bucket size'
+        default: '10'
+
+permissions:
+  contents: write
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install PDF libraries
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libpango-1.0-0 libpangoft2-1.0-0 libcairo2 libgdk-pixbuf-2.0-0
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt weasyprint
+
+      - name: Run pipeline
+        env:
+          SMTP_HOST:        ${{ secrets.SMTP_HOST }}
+          SMTP_PORT:        ${{ secrets.SMTP_PORT }}
+          SMTP_USER:        ${{ secrets.SMTP_USER }}
+          SMTP_PASS:        ${{ secrets.SMTP_PASS }}
+          REPORT_TO:        ${{ secrets.REPORT_TO }}
+          TELEGRAM_TOKEN:   ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TWILIO_SID:       ${{ secrets.TWILIO_SID }}
+          TWILIO_TOKEN:     ${{ secrets.TWILIO_TOKEN }}
+          TWILIO_FROM:      ${{ secrets.TWILIO_FROM }}
+          WHATSAPP_TO:      ${{ secrets.WHATSAPP_TO }}
+        run: |
+          python pipeline.py \
+            --universe "${{ github.event.inputs.universe || 'Nifty 500' }}" \
+            --size "${{ github.event.inputs.size || 10 }}" \
+            --horizon 15 \
+            --sector-cap 2 \
+            --notify --channels auto
+        continue-on-error: true
+
+      - name: Commit results
+        run: |
+          git config user.name  "swingscope-bot"
+          git config user.email "actions@github.com"
+          git add forward_log.csv reports/ || true
+          git diff --staged --quiet || git commit -m "Pipeline run $(date +%Y-%m-%d)"
+          git push || true
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: swingscope-pipeline-${{ github.run_number }}
+          path: |
+            reports/latest.html
+            reports/latest.pdf
+            reports/pipeline_latest.txt
+            forward_log.csv
+          if-no-files-found: warn
+          retention-days: 90

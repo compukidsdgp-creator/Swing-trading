@@ -8,7 +8,7 @@ name: SwingScope daily tracker
 # whose weekly non-overlapping windows are the actual statistical evidence.
 on:
   schedule:
-    - cron: '30 3 * * 2-5'
+    - cron: '30 3 * * 2-5'   # Tue-Fri. Monday is covered by main.yml.
   workflow_dispatch:
 
 permissions:
@@ -47,7 +47,9 @@ jobs:
             --no-pdf \
             --skip-news \
             --notify --channels telegram
-        continue-on-error: true
+        # NOTE: no continue-on-error. It suppresses the job's failure state,
+        # which means `if: failure()` below never fires — the alert was dead
+        # code. A run that fails should be loudly visible.
 
       - name: Commit diary
         run: |

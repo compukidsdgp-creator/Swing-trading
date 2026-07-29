@@ -69,6 +69,20 @@ jobs:
           PY
 
       # --- The check that would have caught tonight's deleted functions ---
+      # Importing a module does not execute its function bodies. Five missing
+      # imports in pipeline.py passed the import check and failed at runtime in
+      # production. pyflakes performs real scope analysis and catches them.
+      - name: Check for undefined names
+        run: |
+          pip install pyflakes --quiet
+          OUT=$(python -m pyflakes *.py 2>&1 | grep -i "undefined name" || true)
+          if [ -n "$OUT" ]; then
+            echo "UNDEFINED NAMES — these raise NameError at runtime:"
+            echo "$OUT"
+            exit 1
+          fi
+          echo "No undefined names."
+
       - name: Check app.py wiring
         run: |
           python - <<'PY'

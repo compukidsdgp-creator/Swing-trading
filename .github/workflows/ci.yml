@@ -136,6 +136,12 @@ jobs:
           PY
 
       # --- Property-based suite ---
+      # Property tests verify invariants; they cannot detect a change that
+      # satisfies every property while producing materially worse numbers.
+      # This asserts the validated metrics have not degraded.
+      - name: Regression guardrail
+        run: python test_regression.py
+
       - name: Invariant tests
         run: python test_invariants.py 25
 

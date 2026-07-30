@@ -11,6 +11,12 @@ on:
     - cron: '0 5 1 * *'
   workflow_dispatch:
 
+# Prevent overlapping runs of this workflow. Several workflows commit to the
+# same branch, and concurrent pushes previously failed silently.
+concurrency:
+  group: swingscope-write
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -68,13 +74,31 @@ jobs:
           PY
         continue-on-error: true
 
-      - name: Commit archive
+      - name: Commit results
         run: |
           git config user.name  "swingscope-bot"
           git config user.email "actions@github.com"
           git add fundamentals_archive.csv || true
-          git diff --staged --quiet || git commit -m "Fundamentals snapshot $(date +%F)"
-          git push || true
+          if git diff --staged --quiet; then
+            echo "Nothing to commit."
+            exit 0
+          fi
+          git commit -m "Fundamentals snapshot $(date +%F)"
+
+          # Retry with rebase. Concurrent runs cause non-fast-forward
+          # rejections, and `git push || true` silently DISCARDS the commit —
+          # for forward_log.csv that is irreplaceable data loss.
+          for i in 1 2 3 4 5; do
+            if git push; then
+              echo "Pushed on attempt $i."
+              exit 0
+            fi
+            echo "Push rejected (attempt $i) — rebasing onto remote."
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME:-main}" || true
+            sleep $((i * 4))
+          done
+          echo "::error::Could not push after 5 attempts. Commit not persisted."
+          exit 1
 
       - name: Alert on failure
         if: failure()

@@ -123,27 +123,19 @@ def main() -> int:
               "Use --prices-from-bhavcopy for the\n  version that genuinely "
               "removes survivorship bias.")
 
-    # --- Standard ---
+    # --- Point in time FIRST, so the standard run can be aligned to it ---
+    #
+    # The bhavcopy cache covers a shorter period than the price history. Running
+    # standard unrestricted measures a different era, and the difference between
+    # them is then period effect rather than survivorship. An early run compared
+    # 203 windows against 29 and reported a meaningless 17.3% figure.
     print("\n" + "-" * 70)
-    print("1. STANDARD — fixed present-day universe")
-    print("-" * 70)
-    std = pv.validate_standard(frames, horizon=args.horizon)
-    if std.windows < 8:
-        print("  " + "; ".join(std.notes))
-        return 1
-    print(f"  IC {std.mean_ic:+.4f}  t={std.ic_t}  "
-          f"spread {std.gross_spread_pct:+.3f}%")
-    print(f"  {std.windows} windows · universe {std.mean_universe_size:.0f} · "
-          f"{std.pct_positive:.1f}% positive")
-
-    # --- Point in time ---
-    print("\n" + "-" * 70)
-    print("2. POINT-IN-TIME — universe rebuilt at every observation date")
+    print("1. POINT-IN-TIME — universe rebuilt at every observation date")
     print("-" * 70)
 
-    def _prog(i, n, d):
-        if i % 200 == 0:
-            print(f"    {d}…", flush=True)
+    def _prog(*a):
+        if a and a[0] % 200 == 0:
+            print(f"    {a[2] if len(a) > 2 else a[0]}…", flush=True)
 
     pit = pv.validate_pit(frames, bhav, horizon=args.horizon,
                           min_turnover_cr=args.min_turnover, progress=_prog)
@@ -155,6 +147,22 @@ def main() -> int:
     print(f"  {pit.windows} windows · universe {pit.mean_universe_size:.0f} · "
           f"churn {pit.universe_churn_pct:.1f}% · {pit.pct_positive:.1f}% positive")
     for n in pit.notes:
+        print(f"  · {n}")
+
+    # --- Standard, restricted to the same dates ---
+    pit_dates = (pit.per_window["date"].min(), pit.per_window["date"].max())
+    print("\n" + "-" * 70)
+    print(f"2. STANDARD — fixed present-day universe, {pit_dates[0]} to {pit_dates[1]}")
+    print("-" * 70)
+    std = pv.validate_standard(frames, horizon=args.horizon,
+                               start=pit_dates[0], end=pit_dates[1])
+    if std.windows < 8:
+        print("  " + "; ".join(std.notes))
+        return 1
+    print(f"  IC {std.mean_ic:+.4f}  t={std.ic_t}  "
+          f"spread {std.gross_spread_pct:+.3f}%")
+    print(f"  {std.windows} windows · universe {std.mean_universe_size:.0f}")
+    for n in std.notes:
         print(f"  · {n}")
 
     # --- Comparison ---
@@ -170,6 +178,7 @@ def main() -> int:
     out = {
         "run_at": dt.datetime.now().isoformat(timespec="seconds"),
         "horizon": args.horizon,
+        "date_range": list(pit_dates),
         "standard": {"ic": std.mean_ic, "t": std.ic_t,
                      "spread": std.gross_spread_pct, "windows": std.windows},
         "point_in_time": {"ic": pit.mean_ic, "t": pit.ic_t,

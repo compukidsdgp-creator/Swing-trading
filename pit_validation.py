@@ -48,6 +48,26 @@ from backtest import MIN_HISTORY
 from factor_analysis import _newey_west_se, _spearman
 
 
+# Forward returns beyond this are corporate actions or data errors, not price
+# moves. A 30-day return of +300% is not a stock going up.
+WINSORISE_PCT = 1.0          # trim the extreme 1% at each tail
+MAX_PLAUSIBLE_RETURN = 200.0  # hard ceiling, percent
+
+
+def _winsorise(arr: np.ndarray, pct: float = WINSORISE_PCT) -> np.ndarray:
+    """Clip extreme forward returns before averaging.
+
+    Rank-based statistics are immune to this; means are not. Without it a
+    single unadjusted split dominates an entire window's spread.
+    """
+    if len(arr) < 20:
+        return np.clip(arr, -MAX_PLAUSIBLE_RETURN, MAX_PLAUSIBLE_RETURN)
+    lo = np.percentile(arr, pct)
+    hi = np.percentile(arr, 100 - pct)
+    return np.clip(arr, max(lo, -MAX_PLAUSIBLE_RETURN),
+                   min(hi, MAX_PLAUSIBLE_RETURN))
+
+
 @dataclass
 class PITResult:
     mean_ic: float
@@ -194,14 +214,25 @@ def validate_pit(
         ic = _spearman(s, f)
         if not np.isfinite(ic):
             continue
+
+        # Winsorise before computing the spread.
+        #
+        # IC is rank-based and shrugs off outliers. Mean quintile spread does
+        # not: a single unadjusted split or a penny stock doubling produces a
+        # figure in the thousands of percent. An early run reported a 2091%
+        # 30-day spread for exactly this reason, while its IC looked sane —
+        # which is a useful signature to recognise.
+        f_w = _winsorise(f)
         order = np.argsort(s)
         q = max(1, len(s) // 5)
         rows.append({
             "date": date.date().isoformat(),
             "n": len(s),
             "ic": ic,
-            "spread": f[order[-q:]].mean() - f[order[:q]].mean(),
+            "spread": f_w[order[-q:]].mean() - f_w[order[:q]].mean(),
+            "spread_raw": f[order[-q:]].mean() - f[order[:q]].mean(),
             "universe": len(members),
+            "max_abs_return": float(np.abs(f).max()),
         })
 
     if len(rows) < 8:
@@ -214,7 +245,15 @@ def validate_pit(
     ic_se = _newey_west_se(ic_arr)
     sp_se = _newey_west_se(sp_arr)
 
-    notes = [
+    max_seen = float(df["max_abs_return"].max()) if "max_abs_return" in df else 0.0
+    notes = []
+    if max_seen > MAX_PLAUSIBLE_RETURN:
+        notes.append(
+            f"DATA QUALITY: largest single forward return seen was "
+            f"{max_seen:,.0f}%. That is an unadjusted corporate action or a "
+            "penny stock, not a price move. Spread figures are winsorised; IC "
+            "is rank-based and unaffected. Treat the spread as indicative only.")
+    notes += [
         "Universe rebuilt at every observation date from NSE bhavcopy — a "
         "security is included only if it actually traded that day and met the "
         "liquidity floor then.",
@@ -244,8 +283,18 @@ def validate_standard(
     *,
     horizon: int = 30,
     min_names: int = 30,
+    start: str | None = None,
+    end: str | None = None,
 ) -> PITResult:
-    """The same measurement on a fixed present-day universe, for comparison."""
+    """The same measurement on a fixed present-day universe, for comparison.
+
+    Args:
+        start / end: restrict to a date range. Essential when comparing against
+            a point-in-time run — the bhavcopy cache covers a shorter period
+            than the price history, so an unrestricted standard run measures a
+            different era and the comparison is meaningless. An early run
+            compared 203 windows against 29 for exactly this reason.
+    """
     enriched = {}
     for t, df in frames.items():
         if df is None or len(df) < MIN_HISTORY + horizon + 5:
@@ -261,8 +310,15 @@ def validate_standard(
     step = horizon + 3
     rows = []
 
+    lo = pd.Timestamp(start) if start else None
+    hi = pd.Timestamp(end) if end else None
+
     for k in range(MIN_HISTORY, len(cal) - horizon - 1, step):
         date = cal[k]
+        if lo is not None and date < lo:
+            continue
+        if hi is not None and date > hi:
+            continue
         sc, fwd = [], []
         for t, e in enriched.items():
             try:
@@ -300,6 +356,16 @@ def validate_standard(
     ic_arr, sp_arr = df["ic"].to_numpy(), df["spread"].to_numpy()
     ic_se, sp_se = _newey_west_se(ic_arr), _newey_west_se(sp_arr)
 
+    std_notes = ["Fixed present-day universe — carries survivorship bias."]
+    if start or end:
+        std_notes.append(f"Restricted to {start or 'start'} … {end or 'end'} to "
+                         "match the point-in-time window set.")
+    if "max_abs_return" in df.columns:
+        mx = float(df["max_abs_return"].max())
+        if mx > MAX_PLAUSIBLE_RETURN:
+            std_notes.insert(0, f"DATA QUALITY: largest forward return "
+                                f"{mx:,.0f}% — spread winsorised.")
+
     return PITResult(
         mean_ic=round(float(ic_arr.mean()), 4),
         ic_t=round(float(ic_arr.mean() / ic_se), 2) if ic_se else np.nan,
@@ -310,7 +376,7 @@ def validate_standard(
         mean_universe_size=float(len(enriched)),
         universe_churn_pct=0.0,
         per_window=df,
-        notes=["Fixed present-day universe — carries survivorship bias."],
+        notes=std_notes,
     )
 
 
@@ -319,6 +385,19 @@ def compare(standard: PITResult, pit: PITResult) -> ComparisonResult:
     if not standard or not pit or standard.windows < 8 or pit.windows < 8:
         return ComparisonResult(standard, pit, None, None, None, "error",
                                 "Not enough windows in one or both runs.")
+
+    # Refuse a comparison between very different window counts. If one run
+    # covers 203 observations and the other 29, they measured different eras
+    # and any difference between them is period effect, not survivorship.
+    ratio = max(standard.windows, pit.windows) / min(standard.windows, pit.windows)
+    if ratio > 1.6:
+        return ComparisonResult(
+            standard, pit, None, None, None, "error",
+            f"**Window counts are not comparable** — {standard.windows} against "
+            f"{pit.windows}. The two runs measured different periods, so the "
+            "difference between them is period effect rather than survivorship. "
+            "Restrict the standard run to the point-in-time date range using "
+            "`start=` and `end=`, then compare again.")
 
     ic_diff = round(pit.mean_ic - standard.mean_ic, 4)
     sp_diff = round(pit.gross_spread_pct - standard.gross_spread_pct, 3)

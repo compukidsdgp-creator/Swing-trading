@@ -1,9 +1,15 @@
 name: SwingScope pipeline
 
 on:
-  workflow_dispatch:
+
+workflow_dispatch:
   schedule:
     - cron: '30 3 * * 1'
+ concurrency:
+  group: swingscope-write
+  cancel-in-progress: false
+  
+  
 
 permissions:
   contents: write
@@ -38,12 +44,26 @@ jobs:
 
       - name: Commit results
         run: |
-          git config user.name "swingscope-bot"
+          git config user.name  "swingscope-bot"
           git config user.email "actions@github.com"
           git add forward_log.csv reports/ audit_trail.jsonl || true
-          git diff --staged --quiet || git commit -m "Run $(date +%F)"
-          git push || true
+          if git diff --staged --quiet; then
+            echo "Nothing to commit."
+            exit 0
+          fi
+          git commit -m "Run $(date +%F)"
 
+          for i in 1 2 3 4 5; do
+            if git push; then
+              echo "Pushed on attempt $i."
+              exit 0
+            fi
+            echo "Push rejected (attempt $i) — rebasing onto remote."
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME:-main}" || true
+            sleep $((i * 4))
+          done
+          echo "::error::Could not push after 5 attempts. Commit not persisted."
+          exit 1
       - name: Upload report
         uses: actions/upload-artifact@v5
         with:

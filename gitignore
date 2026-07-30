@@ -1,0 +1,11 @@
+.streamlit/secrets.toml
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Bhavcopy cache — day files are re-downloadable, and the consolidated
+# parquet plus manifest are derived. None belong in git.
+bhavcache/
+_consolidated.parquet
+_manifest.json

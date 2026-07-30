@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import datetime as dt
 import io
+import json
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -364,6 +365,109 @@ def universe_churn(frames: dict[pd.Timestamp, pd.DataFrame],
     return pd.DataFrame(rows)
 
 
+CONSOLIDATED = CACHE_DIR / "_consolidated.parquet"
+MANIFEST = CACHE_DIR / "_manifest.json"
+
+
+def _day_files() -> list:
+    return sorted(CACHE_DIR.rglob("bhav_*.parquet"))
+
+
+def consolidate(*, force: bool = False) -> dict:
+    """Merge the per-day parquets into one file, for fast reading.
+
+    The per-day layout is right for INGESTION: each file is immutable, written
+    once, and a partial download resumes cleanly. It is wrong for ANALYSIS,
+    because validation reads every day and 1,250 small file opens cost far more
+    than one large one.
+
+    So both exist. Day files remain the source of truth; this is a derived cache
+    rebuilt whenever the day count changes. A manifest records the file count and
+    date range, so a rebuild is skipped when nothing has been added.
+    """
+    files = _day_files()
+    if not files:
+        return {"built": False, "reason": "No cached day files."}
+
+    prev = {}
+    if MANIFEST.exists():
+        try:
+            prev = json.loads(MANIFEST.read_text())
+        except Exception:                                      # noqa: BLE001
+            prev = {}
+
+    if (not force and CONSOLIDATED.exists()
+            and prev.get("n_files") == len(files)):
+        return {"built": False, "reason": "Up to date.", "n_files": len(files),
+                "days": prev.get("days"), "path": str(CONSOLIDATED)}
+
+    frames = []
+    for f in files:
+        try:
+            d = dt.datetime.strptime(f.stem.replace("bhav_", ""), "%Y%m%d").date()
+        except ValueError:
+            continue
+        try:
+            df = pd.read_parquet(f)
+        except Exception:                                      # noqa: BLE001
+            continue
+        if df.empty:
+            continue
+        df = df.copy()
+        df["date"] = pd.Timestamp(d)
+        frames.append(df)
+
+    if not frames:
+        return {"built": False, "reason": "No readable day files."}
+
+    allday = pd.concat(frames, ignore_index=True)
+    CONSOLIDATED.parent.mkdir(parents=True, exist_ok=True)
+    allday.to_parquet(CONSOLIDATED, index=False, compression="snappy")
+
+    days = int(allday["date"].dt.date.nunique())
+    manifest = {
+        "n_files": len(files),
+        "days": days,
+        "rows": len(allday),
+        "earliest": str(allday["date"].min().date()),
+        "latest": str(allday["date"].max().date()),
+        "built_at": dt.datetime.now().isoformat(timespec="seconds"),
+    }
+    MANIFEST.write_text(json.dumps(manifest, indent=2))
+    return {"built": True, "path": str(CONSOLIDATED), **manifest}
+
+
+def load_consolidated(start: str | dt.date | None = None,
+                      end: str | dt.date | None = None) -> dict:
+    """Load from the consolidated file, building it if stale.
+
+    Returns the same {date: DataFrame} shape as load_cached, so callers are
+    interchangeable.
+    """
+    consolidate()
+    if not CONSOLIDATED.exists():
+        return load_cached(start, end)
+
+    try:
+        allday = pd.read_parquet(CONSOLIDATED)
+    except Exception:                                          # noqa: BLE001
+        # A corrupt derived cache must never block the run — the day files are
+        # the source of truth.
+        CONSOLIDATED.unlink(missing_ok=True)
+        return load_cached(start, end)
+
+    if "date" not in allday.columns:
+        return load_cached(start, end)
+
+    if start is not None:
+        allday = allday[allday["date"] >= pd.Timestamp(start)]
+    if end is not None:
+        allday = allday[allday["date"] <= pd.Timestamp(end)]
+
+    return {d.date(): g.drop(columns=["date"])
+            for d, g in allday.groupby("date")}
+
+
 def load_cached(start: str | dt.date | None = None,
                 end: str | dt.date | None = None) -> dict:
     """Load bhavcopies from the local cache only. Never touches the network.
@@ -380,7 +484,7 @@ def load_cached(start: str | dt.date | None = None,
     lo = pd.Timestamp(start).date() if start else None
     hi = pd.Timestamp(end).date() if end else None
 
-    for f in sorted(CACHE_DIR.rglob("bhav_*.parquet")):
+    for f in _day_files():
         try:
             d = dt.datetime.strptime(f.stem.replace("bhav_", ""), "%Y%m%d").date()
         except ValueError:

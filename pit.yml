@@ -1,0 +1,165 @@
+name: Point-in-time validation
+
+# Runs the validation that closes the largest outstanding audit gap: how much
+# of the reported edge was survivorship bias.
+#
+# Downloads bhavcopy history and runs the comparison in a single job, so it
+# does not depend on a persistent local cache. Streamlit Cloud's filesystem is
+# ephemeral, so downloading there does not help — the data vanishes on restart.
+#
+# The parquet cache persists between runs via actions/cache, so the slow
+# download happens once rather than every time.
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: 'Trading days of bhavcopy to ensure cached'
+        default: '500'
+      horizon:
+        description: 'Holding period in days'
+        default: '30'
+      stocks:
+        description: 'Universe size'
+        default: '300'
+
+# Prevent overlapping runs of this workflow. Several workflows commit to the
+# same branch, and concurrent pushes previously failed silently.
+concurrency:
+  group: swingscope-write
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pyarrow
+
+      # Persist the parquet cache between runs. The download is the slow part;
+      # doing it once and reusing it makes re-runs cheap.
+      - name: Restore bhavcopy cache
+        uses: actions/cache@v4
+        with:
+          path: bhavcache
+          key: bhavcache-${{ github.run_id }}
+          restore-keys: |
+            bhavcache-
+
+      - name: Download bhavcopy history
+        run: |
+          python - <<'PY'
+          import sys, types, datetime as dt
+          f = types.ModuleType("streamlit")
+          def _p(*a, **k):
+              return a[0] if (a and callable(a[0])) else (lambda fn: fn)
+          f.cache_data = _p; f.cache_resource = _p; f.secrets = {}
+          sys.modules["streamlit"] = f
+
+          import bhavcopy as bc
+
+          before = bc.cache_stats()
+          print(f"cache before: {before['days']} days")
+
+          target = int("${{ github.event.inputs.days || 500 }}")
+          end = dt.date.today()
+          start = end - dt.timedelta(days=int(target * 1.45))
+
+          print(f"ensuring {start} to {end} is cached...")
+          # fetch_range signature: (start, end, *, max_days, progress)
+          # Caching happens inside fetch_day; already-cached dates are skipped.
+          # progress is called as (i, n, date, source) — accept *args so a
+          # future signature change cannot break a 60-minute download.
+          def _prog(*a):
+              if a and a[0] % 50 == 0:
+                  print(f"  {a[0]}/{a[1] if len(a) > 1 else '?'} "
+                        f"{a[2] if len(a) > 2 else ''}", flush=True)
+
+          res = bc.fetch_range(start.isoformat(), end.isoformat(),
+                               max_days=target, progress=_prog)
+          after = bc.cache_stats()
+          print(f"cache after: {after['days']} days "
+                f"({after.get('earliest')} to {after.get('latest')})")
+
+          # Build the consolidated read cache once here, rather than on first
+          # use inside the validation step. Day files stay the source of truth;
+          # this is derived and rebuilt whenever the day count changes.
+          rep = bc.consolidate()
+          if rep.get("built"):
+              print(f"consolidated: {rep['days']} days, {rep['rows']:,} rows")
+          else:
+              print(f"consolidated: {rep.get('reason')}")
+
+          if after["days"] < 90:
+              print("Too few days cached to validate. NSE may be blocking, or "
+                    "the mirror may be unavailable.")
+              sys.exit(1)
+          PY
+
+      - name: Run point-in-time validation
+        run: |
+          python run_pit_validation.py \
+            --horizon ${{ github.event.inputs.horizon || 30 }} \
+            --stocks ${{ github.event.inputs.stocks || 300 }} \
+            --prices-from-bhavcopy
+
+      - name: Commit results
+        run: |
+          git config user.name  "swingscope-bot"
+          git config user.email "actions@github.com"
+          git add reports/pit_validation.json audit_trail.jsonl || true
+          if git diff --staged --quiet; then
+            echo "Nothing to commit."
+            exit 0
+          fi
+          git commit -m "PIT validation $(date +%F)"
+
+          # Retry with rebase. Concurrent runs cause non-fast-forward
+          # rejections, and `git push || true` silently DISCARDS the commit —
+          # for forward_log.csv that is irreplaceable data loss.
+          for i in 1 2 3 4 5; do
+            if git push; then
+              echo "Pushed on attempt $i."
+              exit 0
+            fi
+            echo "Push rejected (attempt $i) — rebasing onto remote."
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME:-main}" || true
+            sleep $((i * 4))
+          done
+          echo "::error::Could not push after 5 attempts. Commit not persisted."
+          exit 1
+
+      - name: Publish to run summary
+        if: always()
+        run: |
+          if [ -f reports/pit_validation.json ]; then
+            echo '### Point-in-time validation' >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            cat reports/pit_validation.json >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo '' >> $GITHUB_STEP_SUMMARY
+            echo 'Use the point-in-time IC as the benchmark from here. Update MEMORY.md.' >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Alert on failure
+        if: failure()
+        env:
+          TELEGRAM_TOKEN:   ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          curl -s -X POST \
+            "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            -d text="🔴 SwingScope PIT validation failed. See the Actions log." \
+            || true

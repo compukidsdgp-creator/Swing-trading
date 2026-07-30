@@ -314,7 +314,11 @@ def validate_standard(
     if not enriched:
         return PITResult(0, 0, 0, 0, 0, 0, 0, 0, notes=["No usable data."])
 
-    cal = pd.DatetimeIndex(max((e.index for e in enriched.values()), key=len))
+    # Deduplicate and sort. A frame with repeated dates inflates the calendar
+    # and multiplies the window count — 9,833 bars were once seen where 900
+    # were expected.
+    cal = pd.DatetimeIndex(
+        max((e.index for e in enriched.values()), key=len)).unique().sort_values()
     step = horizon + 3
     rows = []
 

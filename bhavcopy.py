@@ -397,10 +397,27 @@ def build_price_history(
         return {}, {"error": "No usable rows in the cache."}
 
     allday = pd.concat(rows, ignore_index=True)
+
+    # Bhavcopy carries multiple series per symbol — EQ, BE, BZ and others. A
+    # symbol present in several series produces duplicate dates once grouped by
+    # symbol alone, which corrupts both the price series and any calendar built
+    # from it. One validation run reported 9,833 calendar bars where 900 were
+    # expected, and produced 202 windows instead of 27.
+    if "series" in allday.columns:
+        eq = allday[allday["series"].astype(str).str.upper() == "EQ"]
+        if len(eq) > len(allday) * 0.5:
+            allday = eq
+    before = len(allday)
+    allday = allday.drop_duplicates(subset=["symbol", "date"], keep="first")
+    n_dupes = before - len(allday)
+
     out, adjusted, skipped = {}, [], []
 
     for sym, g in allday.groupby("symbol"):
-        g = g.sort_values("date").set_index("date")
+        g = g.sort_values("date")
+        # Belt and braces: an index with duplicate dates breaks every rolling
+        # calculation downstream and is silent until something else fails.
+        g = g[~g["date"].duplicated(keep="first")].set_index("date")
         if len(g) < min_days:
             skipped.append(sym)
             continue
@@ -441,6 +458,7 @@ def build_price_history(
 
     report = {
         "symbols": len(out),
+        "duplicate_rows_dropped": n_dupes,
         "skipped_short_history": len(skipped),
         "split_adjusted": len(adjusted),
         "adjustments": adjusted[:20],

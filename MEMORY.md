@@ -2,7 +2,7 @@
 
 *Single source of truth. Update this file whenever a number changes.*
 
-*Last updated: 29 July 2026*
+*Last updated: 30 July 2026*
 
 ---
 
@@ -23,14 +23,26 @@ CURRENT CONFIG
   Bucket: 10 picks (top 2.5%)
   Experiment started: 28 July 2026
 
+BENCHMARK — use this one
+  Forward IC benchmark: 0.0262
+  Derived: 20-year IC 0.0311 x (1 - 0.156 survivorship correction)
+  An inference, not a direct measurement. See below.
+
 VALIDATION — 20 year, 201 windows
-  Mean IC: 0.0311
+  Mean IC: 0.0311  (survivorship-biased)
   Newey-West t: 2.74
   Permutation p: 0.00
   Positive windows: 61.7%
   Gross quintile spread: 0.46%
   Long-only edge at 30d: 2.16%
   Net after costs and 20% STCG: +5.95% annualised
+
+POINT-IN-TIME — 30 windows, 2022-08 to 2026-05, run 30 Jul 2026
+  Standard IC: 0.0686 (t=3.36) on the same dates
+  Point-in-time IC: 0.0579 (t=2.21)
+  Survivorship inflation: 15.6%
+  Gross spread: 2.284% (PIT) vs 2.742% (standard)
+  Universe churn: 44.6% between observations
 
 SUPERSEDED — do not use
   5-year: IC 0.076, spread 1.42%. Did not generalise.
@@ -67,7 +79,10 @@ Attach `forward_log.csv` and this file.
 
 | Metric | Value | Source |
 |---|---|---|
-| **Benchmark IC** | **0.0311** | 20-year, 201 windows |
+| **Benchmark IC** | **0.0262** | 20-year 0.0311 less 15.6% survivorship |
+| 20-year IC (biased) | 0.0311 | 201 windows, 2010–2026 |
+| Point-in-time IC | 0.0579 | 30 windows, 2022–2026 |
+| Survivorship inflation | 15.6% | measured 30 Jul 2026 |
 | IC t-statistic | 2.74 | Newey-West |
 | Permutation p | 0.00 | 300 shuffles |
 | Gross spread | 0.46% | quintile, 30-day |
@@ -78,6 +93,26 @@ Attach `forward_log.csv` and this file.
 | Bucket | 10 | top 2.5% |
 
 **Do not use IC 0.076.** That was the 5-year figure, superseded.
+
+### Why 0.0262 and not 0.0579
+
+The two validated figures measure different things and neither is simply better.
+
+| | Period | Universe | Windows | IC |
+|---|---|---|---|---|
+| 20-year | 2010–2026 | 150 long-history symbols | 201 | 0.0311 |
+| Point-in-time | 2022–2026 | bhavcopy, 44.6% churn | 30 | 0.0579 |
+
+The point-in-time figure is survivorship-corrected but rests on 30 windows over
+3.6 years. The 20-year figure has 201 windows but carries survivorship bias.
+
+**0.0262 applies the measured 15.6% correction to the long-run number.** It is an
+inference rather than a direct measurement, and should be labelled as such — but
+it is more defensible than either raw figure, because it combines the longer
+sample with the bias correction.
+
+If forward IC lands near 0.0579 that is a good outcome, not merely an adequate
+one. If it lands near 0.026 it is in line with expectation.
 
 ---
 
@@ -134,7 +169,7 @@ return.
 
 | Item | Severity |
 |---|---|
-| PIT validation not yet run on real data | **high** — changes the benchmark |
+| ~~PIT validation~~ | **DONE** 30 Jul 2026 — 15.6% inflation |
 | Trade attribution not built | medium |
 | Stress testing not built | medium |
 | Two stale branches in repo | cosmetic |
@@ -146,14 +181,14 @@ return.
 
 ## The decision point
 
-**Week 8 — compare forward IC against 0.0311.**
+**Week 8 — compare forward IC against 0.0262.**
 
-| Retention | Reading | Action |
+| Forward IC | Retention | Action |
 |---|---|---|
-| 60%+ | Holding up | Consider small live size |
-| 40–60% | Normal decay | Continue paper trading |
-| Under 40% | Substantial decay | Do not size up |
-| Zero or negative | Backtest did not hold | **Stop** |
+| Above 0.016 | 60%+ | Consider small live size |
+| 0.010–0.016 | 40–60% | Continue paper trading |
+| Below 0.010 | Under 40% | Do not size up |
+| Zero or negative | — | **Stop** |
 
 Forty to sixty percent retention is normal and healthy. Backtests are optimistic
 by construction because the signal was selected on the same data.

@@ -1,25 +1,25 @@
 {
-  "run_at": "2026-07-30T01:21:59",
+  "run_at": "2026-07-30T01:46:44",
   "horizon": 30,
   "date_range": [
     "2022-08-19",
     "2026-05-06"
   ],
   "standard": {
-    "ic": 0.0652,
-    "t": 5.37,
-    "spread": 2.718,
-    "windows": 202,
+    "ic": 0.0686,
+    "t": 3.36,
+    "spread": 2.742,
+    "windows": 29,
     "dates": [
-      "2022-08-22",
-      "2026-03-31"
+      "2022-09-29",
+      "2026-04-30"
     ],
-    "calendar_bars": 9833
+    "calendar_bars": 1264
   },
   "point_in_time": {
-    "ic": 0.0584,
-    "t": 2.27,
-    "spread": 2.326,
+    "ic": 0.0579,
+    "t": 2.21,
+    "spread": 2.284,
     "windows": 30,
     "churn_pct": 44.6,
     "dates": [
@@ -28,6 +28,6 @@
     ],
     "calendar_bars": 1264
   },
-  "survivorship_inflation_pct": null,
-  "verdict": "error"
+  "survivorship_inflation_pct": 15.6,
+  "verdict": "good"
 }

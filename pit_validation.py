@@ -80,6 +80,12 @@ class PITResult:
     universe_churn_pct: float
     per_window: pd.DataFrame = field(default_factory=pd.DataFrame)
     notes: list[str] = field(default_factory=list)
+    # Actual dates covered. Reported explicitly because a date filter that
+    # silently fails to apply is otherwise invisible — the window count looks
+    # wrong but nothing says why.
+    first_date: str = ""
+    last_date: str = ""
+    calendar_bars: int = 0
 
 
 @dataclass
@@ -275,6 +281,8 @@ def validate_pit(
         mean_universe_size=round(float(df["universe"].mean()), 1),
         universe_churn_pct=round(float(np.mean(churns)), 1) if churns else 0.0,
         per_window=df, notes=notes,
+        first_date=str(df["date"].min()), last_date=str(df["date"].max()),
+        calendar_bars=len(cal),
     )
 
 
@@ -383,6 +391,8 @@ def validate_standard(
         universe_churn_pct=0.0,
         per_window=df,
         notes=std_notes,
+        first_date=str(df["date"].min()), last_date=str(df["date"].max()),
+        calendar_bars=len(cal),
     )
 
 
@@ -397,13 +407,26 @@ def compare(standard: PITResult, pit: PITResult) -> ComparisonResult:
     # and any difference between them is period effect, not survivorship.
     ratio = max(standard.windows, pit.windows) / min(standard.windows, pit.windows)
     if ratio > 1.6:
+        detail = ""
+        if standard.first_date and pit.first_date:
+            detail = (f"\n\nStandard covered {standard.first_date} to "
+                      f"{standard.last_date} across {standard.calendar_bars} "
+                      f"calendar bars.\nPoint-in-time covered {pit.first_date} "
+                      f"to {pit.last_date} across {pit.calendar_bars} bars.")
+            if standard.first_date < pit.first_date:
+                detail += ("\n\nThe standard run started EARLIER than the "
+                           "point-in-time run, so the date restriction did not "
+                           "apply. Check that `start=` reached validate_standard.")
+            elif standard.calendar_bars > pit.calendar_bars * 1.5:
+                detail += ("\n\nThe standard run had a much longer calendar. "
+                           "Its price frames extend beyond the bhavcopy period, "
+                           "so its step count is larger even within the same "
+                           "date range.")
         return ComparisonResult(
             standard, pit, None, None, None, "error",
             f"**Window counts are not comparable** — {standard.windows} against "
-            f"{pit.windows}. The two runs measured different periods, so the "
-            "difference between them is period effect rather than survivorship. "
-            "Restrict the standard run to the point-in-time date range using "
-            "`start=` and `end=`, then compare again.")
+            f"{pit.windows}. The difference between the two runs would be period "
+            f"effect rather than survivorship.{detail}")
 
     ic_diff = round(pit.mean_ic - standard.mean_ic, 4)
     sp_diff = round(pit.gross_spread_pct - standard.gross_spread_pct, 3)

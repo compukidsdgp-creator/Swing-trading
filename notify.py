@@ -99,8 +99,17 @@ def send_email(
 # --------------------------------------------------------------------------
 # Telegram  (recommended)
 # --------------------------------------------------------------------------
-def send_telegram(text: str, document: Path | None = None) -> bool:
+def send_telegram(text: str, document: Path | None = None,
+                  extra_documents: list | None = None) -> bool:
     """Send via Telegram bot. Needs TELEGRAM_TOKEN and TELEGRAM_CHAT_ID.
+
+    Args:
+        document: primary attachment, sent immediately after the message.
+        extra_documents: further files. Telegram's sendDocument takes one file
+            per call, so several attachments mean several calls. A failure on
+            an extra does not fail the send — the message and primary document
+            have already arrived, and losing a supplementary file is not worth
+            reporting the whole notification as failed.
 
     Setup:
       1. Message @BotFather on Telegram, send /newbot, follow prompts.
@@ -138,6 +147,24 @@ def send_telegram(text: str, document: Path | None = None) -> bool:
                     timeout=60,
                 )
                 r2.raise_for_status()
+
+        for extra in (extra_documents or []):
+            p = Path(extra)
+            if not p.exists() or p == Path(document or ""):
+                continue
+            try:
+                with open(p, "rb") as fh:
+                    requests.post(
+                        f"https://api.telegram.org/bot{token}/sendDocument",
+                        data={"chat_id": chat},
+                        files={"document": (p.name, fh)},
+                        timeout=60,
+                    )
+                print(f"  [telegram] also sent {p.name}")
+            except Exception as exc:                           # noqa: BLE001
+                print(f"  [telegram] could not send {p.name}: "
+                      f"{type(exc).__name__}")
+
         print("  [telegram] sent")
         return True
     except Exception as exc:                                   # noqa: BLE001
@@ -241,7 +268,13 @@ def dispatch(
             if cand is not None:
                 doc = cand
                 break
-        results["telegram"] = send_telegram(text_body, doc)
+        # Everything except the primary is sent as a follow-up, so the
+        # dashboard and workbook both arrive rather than one displacing
+        # the other.
+        extras = [v for k, v in (attachments or {}).items()
+                  if v is not None and v is not doc]
+        results["telegram"] = send_telegram(text_body, doc,
+                                            extra_documents=extras)
     if "whatsapp" in wanted:
         results["whatsapp"] = send_whatsapp(text_body)
     return results

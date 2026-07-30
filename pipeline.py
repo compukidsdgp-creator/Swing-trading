@@ -58,6 +58,7 @@ import circuit as cir        # noqa: E402
 import crash_protection as cp  # noqa: E402
 import datasource as dsrc    # noqa: E402
 import earnings as earn      # noqa: E402
+import experiments as expr   # noqa: E402
 import tiers as tr           # noqa: E402
 import config                # noqa: E402
 import forward_log as flog   # noqa: E402
@@ -66,6 +67,7 @@ import macro as mac         # noqa: E402
 import health               # noqa: E402
 import newsfeed              # noqa: E402
 import daily_tracker as dtrack  # noqa: E402
+import dashboard as dashb    # noqa: E402
 import notify                # noqa: E402
 import positions as posn     # noqa: E402
 import regime as rg          # noqa: E402
@@ -731,12 +733,49 @@ def run(args) -> tuple[int, list[str], dict]:
         written.update({f"monthly_{k}": v for k, v in m_written.items()})
         html = m_html          # email the month-end review instead
 
+    # --- 9b. Dashboard ---
+    #
+    # Self-contained HTML: no JavaScript, no CDN, inline SVG charts. Renders
+    # inside Streamlit's sandboxed frame, survives Telegram, and opens years
+    # from now on a machine with no network.
+    if not b.is_empty and not args.no_dashboard:
+        say("\n[9b] Dashboard")
+        try:
+            dash_html = dashb.build(
+                b.picks, data, regime=reg.state,
+                regime_desc=reg.description,
+                summary=(ctx.get("tracker_stats") or {}),
+                notes=[n for n in b.notes[:2]],
+            )
+            dash_path = dashb.save(dash_html)
+            ctx["dashboard"] = dash_path
+            say(f"  {dash_path} ({len(dash_html):,} chars)")
+        except Exception as exc:                               # noqa: BLE001
+            say(f"  dashboard failed ({type(exc).__name__}: {exc})")
+
     # --- 10. Notify ---
     say("\n[10/10] Notify")
     if args.notify:
         text = bk.to_text(b, regime_desc=reg.description)
         if news_notes:
             text += "\n\nFlags:\n" + "\n".join(f"- {n}" for n in news_notes[:6])
+
+        # Experiment registry — Mondays only, and it reports the TRIAL BUDGET
+        # rather than an improvement percentage. A figure measured by the same
+        # process that produced it is not evidence.
+        if args.monthly or dt.date.today().weekday() == 0:
+            try:
+                reg = expr.registry()
+                if not reg.empty or expr.trial_count() > 36:
+                    b = expr.budget_status()
+                    text += (f"\n\n_Experiments: {b['tested']} tested, "
+                             f"{b['cleared_dsr']} cleared DSR. "
+                             f"{b['trials_used']} trials consumed — a result now "
+                             f"needs Sharpe "
+                             f"{b['hurdle_by_trials'][0]['sharpe_needed_to_clear']:.2f} "
+                             "to be believed._")
+            except Exception:                                  # noqa: BLE001
+                pass
 
         # Daily diary summary, if the tracker ran
         ts = ctx.get("tracker_stats")
@@ -745,6 +784,10 @@ def run(args) -> tuple[int, list[str], dict]:
                      f"{ts['days']} days, tracking {ts['tracked_tickers']} tickers._")
 
         send = dict(written)
+        dash_p = ctx.get("dashboard")
+        if dash_p and Path(dash_p).exists():
+            send["dashboard"] = Path(dash_p)
+            say(f"  attaching dashboard: {Path(dash_p).name}")
         xl = ctx.get("tracker_excel")
         if xl and Path(xl).exists():
             send["xlsx"] = Path(xl)
@@ -828,6 +871,8 @@ def main() -> int:
                         "individual price band")
     p.add_argument("--no-log", action="store_true")
     p.add_argument("--no-pdf", action="store_true")
+    p.add_argument("--no-dashboard", action="store_true",
+                   help="skip the HTML dashboard")
     p.add_argument("--notify", action="store_true")
     p.add_argument("--channels", default="auto",
                    help="auto | email,telegram,whatsapp")

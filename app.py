@@ -55,6 +55,7 @@ def _optional(name):
 
 
 brk = _optional("broker")
+dashb = _optional("dashboard")
 oc = _optional("outcomes")
 bhav = _optional("bhavcopy")
 costs = _optional("costs")
@@ -62,7 +63,8 @@ hz = _optional("horizon")
 
 _MISSING = [n for n, m in (("broker", brk), ("bhavcopy", bhav),
                            ("costs", costs), ("horizon", hz),
-                           ("outcomes", oc)) if m is None]
+                           ("outcomes", oc), ("dashboard", dashb))
+            if m is None]
 
 
 def _unavailable(module, purpose):
@@ -422,6 +424,29 @@ def _bucket_dialog(b, reg) -> None:
     )
 
 
+@st.dialog("Dashboard", width="large")
+def _dashboard_dialog() -> None:
+    """Render the self-contained dashboard in a modal.
+
+    st.components.v1.html sandboxes the frame, which is exactly why the
+    dashboard carries no external scripts or stylesheets — anything fetched
+    would be blocked here.
+    """
+    html_text = st.session_state.get("dashboard_html", "")
+    if not html_text:
+        st.warning("Nothing to show.")
+        return
+    st.components.v1.html(html_text, height=760, scrolling=True)
+    c = st.columns(2)
+    c[0].download_button(
+        "Download HTML", html_text.encode(),
+        file_name=f"dashboard_{dt.date.today():%Y%m%d}.html",
+        mime="text/html", use_container_width=True)
+    if c[1].button("Close", use_container_width=True):
+        st.session_state["show_dashboard"] = False
+        st.rerun()
+
+
 # --------------------------------------------------------------------------
 # Screener tab
 # --------------------------------------------------------------------------
@@ -733,6 +758,23 @@ def render_screener(cfg: dict) -> pd.DataFrame:
         b_balance = st.checkbox("Balance across tiers", value=True,
                                 help="Spread across large/mid/small within what the "
                                      "regime permits, rather than taking the top N.")
+
+    if dashb is not None and st.button("📊 Dashboard", key="dash_btn",
+                                       use_container_width=True):
+        b_d = st.session_state.get("bucket")
+        if b_d is None or b_d.is_empty:
+            st.warning("Build a bucket first — the dashboard renders its picks.")
+        else:
+            with st.spinner("Building dashboard…"):
+                tk = tuple(f"{t}.NS" for t in b_d.picks["Ticker"])
+                fr = fetch_history(tk, period="6mo")
+                st.session_state["dashboard_html"] = dashb.build(
+                    b_d.picks, fr, regime=reg.state,
+                    regime_desc=reg.description)
+            st.session_state["show_dashboard"] = True
+
+    if st.session_state.get("show_dashboard"):
+        _dashboard_dialog()
 
     if st.button("🎯 Build today's bucket", type="primary", use_container_width=True):
         b = bk.build(filtered, reg, size=b_size, max_per_sector=b_sector,

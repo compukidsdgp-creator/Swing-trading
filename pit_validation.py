@@ -342,11 +342,17 @@ def validate_standard(
         ic = _spearman(s, f)
         if not np.isfinite(ic):
             continue
+        # Winsorise, exactly as validate_pit does. Without this an unadjusted
+        # corporate action produces a spread in the thousands of percent, and
+        # the two runs are not measuring the same quantity.
+        f_w = _winsorise(f)
         order = np.argsort(s)
         q = max(1, len(s) // 5)
         rows.append({"date": date.date().isoformat(), "n": len(s), "ic": ic,
-                     "spread": f[order[-q:]].mean() - f[order[:q]].mean(),
-                     "universe": len(enriched)})
+                     "spread": f_w[order[-q:]].mean() - f_w[order[:q]].mean(),
+                     "spread_raw": f[order[-q:]].mean() - f[order[:q]].mean(),
+                     "universe": len(enriched),
+                     "max_abs_return": float(np.abs(f).max())})
 
     if len(rows) < 8:
         return PITResult(0, 0, 0, 0, 0, 0, 0, 0,

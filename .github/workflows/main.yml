@@ -1,15 +1,15 @@
 name: SwingScope pipeline
 
 on:
-
-workflow_dispatch:
+  workflow_dispatch:
   schedule:
     - cron: '30 3 * * 1'
- concurrency:
+
+# Prevent overlapping runs. Several workflows commit to the same branch, and
+# concurrent pushes previously failed silently, discarding the commit.
+concurrency:
   group: swingscope-write
   cancel-in-progress: false
-  
-  
 
 permissions:
   contents: write

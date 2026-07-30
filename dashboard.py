@@ -77,6 +77,20 @@ td{padding:6px 9px;border-bottom:1px solid var(--brd);white-space:nowrap}
 tbody tr:nth-child(even){background:#fafbfc}
 .num{text-align:right;font-variant-numeric:tabular-nums}
 .pos{color:var(--grn)}.neg{color:var(--red)}.warn{color:var(--amb)}
+.tk{font-weight:600}
+.mut{color:var(--sub);font-size:11.5px}
+.strong{font-weight:600}
+.badge{display:inline-block;font-size:10.5px;padding:2px 8px;border-radius:10px;
+       white-space:nowrap}
+.b-hold{background:#e8f5ea;color:#166b3a;border:1px solid #bfe3cc}
+.b-stopped{background:#fdeaea;color:#8f2020;border:1px solid #f0c2c2}
+.b-target{background:#e7f0fd;color:#1a4b8f;border:1px solid #c3d8f5}
+.b-expired{background:#f3f0fa;color:#4b3b7a;border:1px solid #d9d0ee}
+.b-no-stop{background:#fdf6e3;color:#6b5312;border:1px solid #ecdca8}
+tr.tr-stopped td{background:#fff7f7}
+tr.tr-target td{background:#f6faff}
+tr.tr-no-stop td{opacity:.72}
+.age{font-size:10.5px;color:var(--sub)}
 .charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));
         gap:14px;margin-top:8px}
 .card{border:1px solid var(--brd);border-radius:8px;padding:12px 13px}
@@ -86,6 +100,23 @@ tbody tr:nth-child(even){background:#fafbfc}
       font-size:11px;color:var(--sub)}
 @media print{.controls{display:none}.card{break-inside:avoid}}
 """
+
+
+def _first_present(*values, default=""):
+    """First value that is neither None nor NaN.
+
+    Not `a or b` — that treats an empty string or zero as absent, and for a
+    sector name or a price of zero those are meaningful values.
+    """
+    for v in values:
+        if v is None:
+            continue
+        if isinstance(v, float) and not np.isfinite(v):
+            continue
+        s = str(v).strip()
+        if s and s.lower() not in ("nan", "none"):
+            return s
+    return default
 
 
 def _esc(x) -> str:
@@ -195,53 +226,108 @@ def build(
                          f"n={s.get('observations','—')}"))
 
     # --- Table ---
-    cols = [("Rank", "rank", 0), ("Ticker", "tkr", None), ("Tier", "tier", None),
-            ("Entry ₹", "Close", 2), ("Stop ₹", "Stop", 2),
-            ("Stop %", "Stop_pct", 2), ("1R ₹", "Target_1R", 2),
-            ("2R ₹", "Target_2R", 2), ("Score", "Score", 0),
-            ("Mom %", "Momentum", 0)]
-    head = "".join(f"<th>{_esc(h)}</th>" for h, _, _ in cols)
+    #
+    # Columns match the reference layout: identity, sector, the three levels
+    # that matter (entry / last / stop), both targets, and two derived figures.
+    #
+    # Room-to-stop and max drawdown are the ones worth having. A stop is only
+    # meaningful relative to where price is NOW, and drawdown since entry says
+    # how close the position already came to failing — neither is visible from
+    # the raw levels.
+    headers = ["Ticker", "Sector", "Entry", "Last", "Stop", "1R", "2R",
+               "Room→stop", "Max DD", "Held", "Status"]
+    head = "".join(
+        f'<th{" class=\'num\'" if h in ("Entry","Last","Stop","1R","2R","Room→stop","Max DD") else ""}>'
+        f'{_esc(h)}</th>' for h in headers)
+
     body = []
     for _, r in picks.iterrows():
-        cells = []
-        for label, key, dp in cols:
-            if key == "tkr":
-                cells.append(f'<td><b>{_esc(r.get("Ticker",""))}</b></td>')
-            elif key in ("rank", "tier"):
-                k = "Rank" if key == "rank" else "Tier"
-                cells.append(f'<td>{_esc(r.get(k, ""))}</td>')
-            else:
-                v = r.get(key)
-                cls = "num"
-                if key == "Stop_pct" and v is not None and np.isfinite(
-                        pd.to_numeric(v, errors="coerce")):
-                    cls += " neg"
-                cells.append(f'<td class="{cls}">{_fmt(v, dp or 0)}</td>')
-        body.append("<tr>" + "".join(cells) + "</tr>")
+        tkr = str(r.get("Ticker", ""))
+        entry = pd.to_numeric(r.get("Close"), errors="coerce")
+        stop = pd.to_numeric(r.get("Stop"), errors="coerce")
+        last = pd.to_numeric(r.get("Last"), errors="coerce")
+        if not np.isfinite(last if last is not None else np.nan):
+            last = entry
+        status = str(r.get("Status") or ("Holding" if np.isfinite(
+            stop if stop is not None else np.nan) else "No active stop"))
+
+        # Room to stop — how far price can fall before the stop triggers
+        room = np.nan
+        if all(np.isfinite(x) for x in (last, stop)) and last:
+            room = (last / stop - 1) * 100
+        maxdd = pd.to_numeric(r.get("Max_DD"), errors="coerce")
+
+        key = status.lower().replace(" ", "-")
+        row_cls = {"holding": "tr-hold", "stopped": "tr-stopped",
+                   "target hit": "tr-target", "expired": "tr-expired",
+                   "no-active-stop": "tr-no-stop"}.get(key, "tr-hold")
+        badge_cls = {"holding": "b-hold", "stopped": "b-stopped",
+                     "target hit": "b-target", "expired": "b-expired",
+                     "no-active-stop": "b-no-stop"}.get(key, "b-hold")
+
+        held = r.get("Days_held")
+        held_txt = (f'{int(held)}d' if held is not None
+                    and np.isfinite(pd.to_numeric(held, errors="coerce"))
+                    else "—")
+
+        body.append(
+            f'<tr class="{row_cls}">'
+            f'<td class="tk">{_esc(tkr)}</td>'
+            f'<td class="mut">{_esc(r.get("Sector") or "—")}</td>'
+            f'<td class="num">{_fmt(entry)}</td>'
+            f'<td class="num strong">{_fmt(last)}</td>'
+            f'<td class="num" style="color:{RED}">{_fmt(stop)}</td>'
+            f'<td class="num" style="color:{GREEN}">{_fmt(r.get("Target_1R"))}</td>'
+            f'<td class="num" style="color:{GREEN}">{_fmt(r.get("Target_2R"))}</td>'
+            f'<td class="num">'
+            f'{("%+.1f%%" % room) if np.isfinite(room) else "—"}</td>'
+            f'<td class="num" style="color:{RED}">'
+            f'{("%.2f%%" % maxdd) if np.isfinite(maxdd) else "—"}</td>'
+            f'<td class="age">{held_txt}</td>'
+            f'<td><span class="badge {badge_cls}">{_esc(status)}</span></td>'
+            f'</tr>')
 
     table = (f'<table><thead><tr>{head}</tr></thead>'
              f'<tbody>{"".join(body)}</tbody></table>'
-             if body else '<div class="note">No picks today.</div>')
+             if body else '<div class="note">No positions to show.</div>')
 
     # --- Charts ---
     cards = []
     for _, r in picks.iterrows():
         t = str(r.get("Ticker", ""))
-        frame = prices.get(t)
-        if frame is None:
-            frame = prices.get(f"{t}.NS")
-        if frame is None or "Close" not in getattr(frame, "columns", []):
-            continue
+        # ChartKey disambiguates the same ticker picked on different dates —
+        # each is an independent position with its own entry and stop.
+        key = r.get("ChartKey")
+        frame = None
+        for candidate in (key, t, f"{t}.NS"):
+            if candidate and candidate in prices:
+                frame = prices[candidate]
+                break
         entry = float(pd.to_numeric(r.get("Close"), errors="coerce") or 0)
         stop = float(pd.to_numeric(r.get("Stop"), errors="coerce") or 0)
-        if entry <= 0 or stop <= 0:
+        ed = r.get("Entry_date")
+        sub_ = (f'<span class="mut" style="font-weight:400"> · {_esc(ed)}</span>'
+                if ed else "")
+
+        # A pick made today has one price bar, and one point is not a chart.
+        # Show a placeholder rather than omitting the card — a missing chart
+        # looks like a bug, and the count no longer matches the table.
+        has_series = (frame is not None
+                      and "Close" in getattr(frame, "columns", [])
+                      and len(frame["Close"].dropna()) >= 2)
+        if not has_series or entry <= 0 or stop <= 0:
+            cards.append(
+                f'<div class="card"><h3>{_esc(t)}{sub_}</h3>'
+                f'<div style="font-size:11.5px;color:{SUB};padding:26px 0;'
+                f'text-align:center">Awaiting price history — '
+                f'charts appear from the next session.</div></div>')
             continue
         series = frame["Close"].tail(60)
         last = float(series.iloc[-1])
         chg = (last / entry - 1) * 100
         cls = "pos" if chg >= 0 else "neg"
         cards.append(
-            f'<div class="card"><h3>{_esc(t)} '
+            f'<div class="card"><h3>{_esc(t)}{sub_} '
             f'<span class="{cls}">{chg:+.2f}%</span></h3>'
             f'{_spark(series, stop, entry)}</div>')
 
@@ -287,6 +373,164 @@ def save(html_text: str, *, obs_date: dt.date | None = None,
     p = out_dir / f"dashboard_{d:%Y%m%d}.html"
     p.write_text(html_text, encoding="utf-8")
     return p
+
+
+# --------------------------------------------------------------------------
+# Cumulative view — a rolling 30-day cohort
+# --------------------------------------------------------------------------
+TRACK_DAYS = 30
+
+
+def build_cumulative(
+    *,
+    track_days: int = TRACK_DAYS,
+    regime: str = "unknown",
+    sectors: dict | None = None,
+) -> tuple[str, Path] | None:
+    """Every stock picked in the last `track_days`, with what happened since.
+
+    Window logic
+    ------------
+    Every row in the tracker CSV is an independent pick. A stock chosen on ten
+    different days is ten positions with ten different entry prices, ten stops
+    and ten outcomes — not one position seen ten times. Each is tracked from
+    its own observation date and gets its own chart.
+
+    Buckets age out whole. Once a day's observations pass `track_days`, that
+    day's rows leave together, in the order they arrived. So the table holds a
+    constant window: roughly `track_days` x picks-per-day rows.
+    """
+    import daily_tracker as dtm
+
+    obs, px = dtm.load()
+    if obs.empty:
+        return None
+
+    obs = obs.dropna(subset=["ticker"]).copy()
+    if obs.empty:
+        return None
+    obs["obs_date"] = pd.to_datetime(obs["obs_date"], errors="coerce")
+    obs = obs.dropna(subset=["obs_date"])
+    if obs.empty:
+        return None
+
+    today = obs["obs_date"].max()
+    cutoff = today - pd.Timedelta(days=track_days)
+
+    # Window FIRST, then first-appearance within it.
+    #
+    # The order matters. Taking first-appearance across all history and then
+    # windowing drops a stock that was first picked 45 days ago and is STILL
+    # being picked — which is exactly the name you most want to see.
+    #
+    # Windowing first means the table holds whatever has been picked in the
+    # last `track_days`, and rows leave when their bucket ages out, in the
+    # order they arrived.
+    # Buckets age out whole — a day's rows leave together.
+    aged_out = obs[obs["obs_date"] < cutoff]
+    dropped_rows = len(aged_out)
+    dropped_buckets = int(aged_out["obs_date"].dt.date.nunique()) if len(aged_out) else 0
+
+    windowed = obs[obs["obs_date"] >= cutoff].copy()
+    if windowed.empty:
+        return None
+    windowed = windowed.sort_values(["obs_date", "rank"], na_position="last")
+
+    px2 = px.copy()
+    if not px2.empty:
+        px2["date"] = pd.to_datetime(px2["date"], errors="coerce")
+        px2 = px2.dropna(subset=["date"])
+
+    rows, prices = [], {}
+    for idx, r in windowed.iterrows():
+        tkr = str(r["ticker"])
+        obs_d = r["obs_date"]
+        entry = pd.to_numeric(r.get("ref_close"), errors="coerce")
+        stop = pd.to_numeric(r.get("stop_loss"), errors="coerce")
+        t1 = pd.to_numeric(r.get("target_1r"), errors="coerce")
+        t2 = pd.to_numeric(r.get("target_2r"), errors="coerce")
+
+        # Price history from THIS pick's own observation date, not the
+        # ticker's first ever appearance.
+        hist = (px2[(px2["ticker"] == tkr) & (px2["date"] >= obs_d)]
+                .sort_values("date") if not px2.empty else pd.DataFrame())
+
+        last, maxdd, status = entry, np.nan, "Holding"
+        held = int((today - obs_d).days)
+
+        if not hist.empty:
+            last = float(hist["close"].iloc[-1])
+            low = float(hist["low"].min()) if "low" in hist else last
+            high = float(hist["high"].max()) if "high" in hist else last
+            if np.isfinite(entry) and entry > 0:
+                maxdd = (low / entry - 1) * 100
+            if np.isfinite(stop) and low <= stop:
+                status = "Stopped"
+            elif np.isfinite(t2) and high >= t2:
+                status = "Target hit"
+            elif np.isfinite(t1) and high >= t1:
+                status = "Target hit"
+            elif held >= track_days:
+                status = "Expired"
+        if not np.isfinite(stop):
+            status = "No active stop"
+
+        # Chart key must be unique per ROW, since the same ticker appears on
+        # several dates with different entries.
+        chart_key = f"{tkr}__{obs_d:%Y%m%d}"
+        if not hist.empty:
+            prices[chart_key] = (hist.set_index("date")
+                                 .rename(columns={"open": "Open", "high": "High",
+                                                  "low": "Low", "close": "Close",
+                                                  "volume": "Volume"}))
+
+        rows.append({
+            "Ticker": tkr,
+            "ChartKey": chart_key,
+            "Sector": _first_present((sectors or {}).get(tkr),
+                                     r.get("sector"), default="—"),
+            "Close": entry, "Last": last, "Stop": stop,
+            "Target_1R": t1, "Target_2R": t2,
+            "Max_DD": maxdd, "Days_held": held, "Status": status,
+            "Entry_date": obs_d.date().isoformat(),
+            "Rank": r.get("rank"),
+        })
+
+    df = pd.DataFrame(rows).sort_values(
+        ["Entry_date", "Rank"], ascending=[False, True]).reset_index(drop=True)
+
+    counts_by_status = df["Status"].value_counts().to_dict()
+    summary = {}
+    live = df[df["Status"] == "Holding"]
+    if not live.empty and "Last" in live and "Close" in live:
+        ret = (pd.to_numeric(live["Last"], errors="coerce")
+               / pd.to_numeric(live["Close"], errors="coerce") - 1) * 100
+        ret = ret.dropna()
+        if len(ret):
+            summary = {"horizon": str(track_days), "observations": len(ret),
+                       "mean_pct": round(float(ret.mean()), 2),
+                       "median_pct": round(float(ret.median()), 2),
+                       "hit_rate_pct": round(float((ret > 0).mean()) * 100, 1)}
+
+    notes = [
+        f"Rolling {track_days}-day window: {len(df)} pick(s) across "
+        f"{df['Entry_date'].nunique()} bucket(s). "
+        f"{dropped_buckets} bucket(s) / {dropped_rows} row(s) have aged out.",
+        "Each row is an independent pick tracked from its own observation "
+        "date. A stock chosen on several days appears once per day, with the "
+        "entry price and stop that applied then.",
+    ]
+    for st_, n_ in counts_by_status.items():
+        notes.append(f"{n_} {st_.lower()}")
+
+    html_text = build(df, prices, regime=regime,
+                      regime_desc=f"rolling {track_days}-day cohort",
+                      summary=summary, notes=notes[:2])
+
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    p = OUT_DIR / f"dashboard_cumulative_{today.date():%Y%m%d}.html"
+    p.write_text(html_text, encoding="utf-8")
+    return html_text, p
 
 
 def build_from_tracker(*, regime: str = "unknown",

@@ -51,6 +51,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+import resilience as resil
+
 CACHE_PATH = Path("macro_cache.csv")
 
 # yfinance tickers for market-observable series. These have no publication lag —
@@ -117,8 +119,13 @@ def fetch_market_series(period: str = "2y") -> dict[str, pd.DataFrame]:
     out = {}
     for name, ticker in MARKET_SERIES.items():
         try:
-            df = yf.download(ticker, period=period, interval="1d",
-                             auto_adjust=True, progress=False)
+            # Retry transient failures. A missing macro series degrades the
+            # regime overlay rather than aborting, but retrying first means
+            # degradation is rarer.
+            df, _ = resil.call_with_retry(
+                yf.download, ticker, period=period, interval="1d",
+                auto_adjust=True, progress=False,
+                max_attempts=2, base_delay=2.0)
             if df is None or df.empty:
                 continue
             if isinstance(df.columns, pd.MultiIndex):

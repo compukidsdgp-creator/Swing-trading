@@ -48,6 +48,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+import resilience as resil
 
 CACHE_DIR = Path("bhavcache")
 
@@ -91,6 +95,33 @@ class FetchResult:
     frame: pd.DataFrame
     source: str
     cached: bool
+
+
+def build_session(*, total_retries: int = 4, backoff_factor: float = 2.0) -> requests.Session:
+    """Session with transport-level retry on the status codes that matter.
+
+    This complements the per-call retry in resilience.py rather than replacing
+    it. urllib3 handles HTTP status codes and the Retry-After header natively at
+    the transport layer, which is more precise than catching exceptions and
+    guessing; resilience.py catches the cases urllib3 does not see, such as a
+    200 response with an unparseable body.
+
+    backoff_factor=2.0 gives waits of 0s, 4s, 8s, 16s.
+    """
+    s = requests.Session()
+    retry = Retry(
+        total=total_retries,
+        backoff_factor=backoff_factor,
+        status_forcelist=(429, 500, 502, 503, 504),
+        allowed_methods=frozenset(["GET", "HEAD"]),
+        respect_retry_after_header=True,
+        raise_on_status=False,
+    )
+    adapter = HTTPAdapter(max_retries=retry, pool_connections=4, pool_maxsize=8)
+    s.mount("https://", adapter)
+    s.mount("http://", adapter)
+    s.headers.update(HEADERS)
+    return s
 
 
 def _cache_path(date: pd.Timestamp) -> Path:
@@ -203,6 +234,26 @@ def fetch_day(date: pd.Timestamp | str, *, use_cache: bool = True,
     return FetchResult(norm, source, False)
 
 
+def _fetch_day_with_retry(date, *, use_cache: bool = True, session=None):
+    """fetch_day wrapped in transient-failure retry.
+
+    A 1,250-day download makes roughly 1,250 network calls. At even a 1%
+    transient failure rate a bare implementation aborts most runs. Retrying the
+    transient cases — rate limits, timeouts, reset connections — while failing
+    fast on persistent ones is the difference between a job that completes and
+    one that has to be restarted repeatedly.
+    """
+    res, stats = resil.call_with_retry(
+        fetch_day, date, use_cache=use_cache, session=session,
+        max_attempts=3, base_delay=3.0, max_delay=20.0,
+    )
+    if res is None:
+        # Return an empty result rather than raising, so one bad day does not
+        # discard the other 1,249.
+        return FetchResult(pd.DataFrame(), "failed", False)
+    return res
+
+
 def fetch_range(start: str, end: str, *, max_days: int = 400,
                 progress=None) -> pd.DataFrame:
     """Fetch a date range. Weekends are skipped; holidays return empty and are ignored.
@@ -210,11 +261,10 @@ def fetch_range(start: str, end: str, *, max_days: int = 400,
     Be considerate with `max_days` — this hits someone else's server.
     """
     days = pd.bdate_range(start, end)[:max_days]
-    s = requests.Session()
-    s.headers.update(HEADERS)
+    s = build_session()
     frames = []
     for i, d in enumerate(days):
-        res = fetch_day(d, session=s)
+        res = _fetch_day_with_retry(d, session=s)
         if not res.frame.empty:
             f = res.frame.copy()
             f["date"] = d

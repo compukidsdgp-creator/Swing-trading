@@ -1,0 +1,11 @@
+{
+  "mean_ic": 0.2853,
+  "quintile_spread": 6.69,
+  "ic_windows": 19,
+  "n_trades": 351,
+  "expectancy_r": 1.6207,
+  "win_rate_pct": 78.06,
+  "max_drawdown_pct": -3.449,
+  "profit_factor": 8.8533,
+  "sharpe": 0.8664
+}

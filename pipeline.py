@@ -71,6 +71,7 @@ import positions as posn     # noqa: E402
 import regime as rg          # noqa: E402
 import report as rep         # noqa: E402
 import momentum as momo      # noqa: E402
+import schema as schm        # noqa: E402
 import scoring               # noqa: E402
 import sentiment as sent     # noqa: E402
 import universe as uni       # noqa: E402
@@ -199,6 +200,24 @@ def run(args) -> tuple[int, list[str], dict]:
     if not data:
         return abort("No price data returned. yfinance may be rate-limiting, "
                      "and the bhavcopy fallback found nothing usable either.")
+
+    # --- Schema contract ---
+    #
+    # Structural validation before anything computes on the data. Health checks
+    # catch staleness and sparse coverage; they do not catch a duplicated index
+    # or a NaN final bar, and both of those reached production here.
+    clean, srep = schm.validate_frames(data, drop_invalid=True)
+    if srep.rejected:
+        say(f"  schema: {srep.summary()}")
+        for v in srep.critical[:5]:
+            say(f"    REJECT {v.ticker}: {v.rule} — {v.detail[:70]}")
+        data = clean
+    else:
+        say(f"  schema: {srep.checked} frames validated, no critical violations")
+    ctx["schema_rejected"] = srep.rejected
+    if not data:
+        return abort("Every frame failed schema validation. The data source is "
+                     "returning structurally invalid frames.")
 
     # --- Health gate ---
     #

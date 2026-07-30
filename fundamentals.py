@@ -62,6 +62,8 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 
+import resilience as resil
+
 ARCHIVE_PATH = Path("fundamentals_archive.csv")
 
 # Fields worth capturing. Deliberately limited to metrics with documented
@@ -118,9 +120,13 @@ def fetch_one(ticker: str, *, timeout_note: bool = True) -> dict | None:
     yfinance's .info endpoint is flaky and rate-limited — failures are normal
     and expected, not exceptional.
     """
-    try:
-        info = yf.Ticker(ticker).info or {}
-    except Exception:                                          # noqa: BLE001
+    # .info is the flakiest endpoint yfinance exposes; failures are routine
+    # rather than exceptional, so retry transient ones.
+    def _get():
+        return yf.Ticker(ticker).info or {}
+
+    info, _ = resil.call_with_retry(_get, max_attempts=2, base_delay=1.5)
+    if info is None:
         return None
     if not info or len(info) < 5:
         return None

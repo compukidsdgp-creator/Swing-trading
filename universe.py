@@ -23,6 +23,8 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 import requests
+
+import resilience as resil
 import streamlit as st
 
 import fallback_universe
@@ -116,6 +118,19 @@ def _to_ns(symbols) -> tuple[str, ...]:
 
 
 @st.cache_data(ttl=60 * 60 * 12, show_spinner=False)
+def _fetch_live_with_retry(fn, *args, **kwargs):
+    """Wrap an NSE call in transient-failure retry.
+
+    NSE rate-limits and rotates bot defences. A cached fallback already exists,
+    but retrying first means the fallback is used only when NSE is genuinely
+    unavailable rather than momentarily busy — which keeps the constituent list
+    fresher.
+    """
+    res, _ = resil.call_with_retry(fn, *args, max_attempts=2, base_delay=3.0,
+                                   **kwargs)
+    return res
+
+
 def fetch_index_constituents(index_name: str) -> UniverseResult:
     """Pull an index's live constituent list from the NSE archive CSV.
 

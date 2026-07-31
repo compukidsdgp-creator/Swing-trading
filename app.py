@@ -773,6 +773,17 @@ def render_screener(cfg: dict) -> pd.DataFrame:
                     regime_desc=reg.description)
             st.session_state["show_dashboard"] = True
 
+    if dashb is not None and st.button("📈 30-day view", key="dash_cum",
+                                       use_container_width=True):
+        with st.spinner("Building rolling 30-day view…"):
+            cum = dashb.build_cumulative(regime=reg.state)
+        if cum is None:
+            st.warning("No tracker history yet — the 30-day view needs the "
+                       "daily tracker to have run at least once.")
+        else:
+            st.session_state["dashboard_html"] = cum[0]
+            st.session_state["show_dashboard"] = True
+
     if st.session_state.get("show_dashboard"):
         _dashboard_dialog()
 

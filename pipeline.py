@@ -388,6 +388,7 @@ def run(args) -> tuple[int, list[str], dict]:
     if args.sector_cap and len(ranked) > 0:
         top_for_sector = ranked.head(min(40, len(ranked)))["Ticker"].tolist()
         sector_map = _sectors(top_for_sector)
+        ctx["sector_map"] = sector_map
         say(f"  sector data for {len(sector_map)} of {len(top_for_sector)} candidates")
 
     b = bk.build(ranked, reg, size=args.size, max_per_sector=args.sector_cap or 99,
@@ -749,7 +750,17 @@ def run(args) -> tuple[int, list[str], dict]:
             )
             dash_path = dashb.save(dash_html)
             ctx["dashboard"] = dash_path
-            say(f"  {dash_path} ({len(dash_html):,} chars)")
+            say(f"  daily: {dash_path} ({len(dash_html):,} chars)")
+
+            # Rolling window across every stock picked in the last 30 days,
+            # with what happened to each since. Older observations age out, so
+            # the file stays a constant size rather than growing without bound.
+            cum = dashb.build_cumulative(regime=reg.state,
+                                         sectors=ctx.get("sector_map"))
+            if cum:
+                cum_html, cum_path = cum
+                ctx["dashboard_cumulative"] = cum_path
+                say(f"  cumulative: {cum_path} ({len(cum_html):,} chars)")
         except Exception as exc:                               # noqa: BLE001
             say(f"  dashboard failed ({type(exc).__name__}: {exc})")
 
@@ -784,10 +795,12 @@ def run(args) -> tuple[int, list[str], dict]:
                      f"{ts['days']} days, tracking {ts['tracked_tickers']} tickers._")
 
         send = dict(written)
-        dash_p = ctx.get("dashboard")
-        if dash_p and Path(dash_p).exists():
-            send["dashboard"] = Path(dash_p)
-            say(f"  attaching dashboard: {Path(dash_p).name}")
+        for key, label in (("dashboard", "daily dashboard"),
+                           ("dashboard_cumulative", "30-day dashboard")):
+            dp = ctx.get(key)
+            if dp and Path(dp).exists():
+                send[key] = Path(dp)
+                say(f"  attaching {label}: {Path(dp).name}")
         xl = ctx.get("tracker_excel")
         if xl and Path(xl).exists():
             send["xlsx"] = Path(xl)

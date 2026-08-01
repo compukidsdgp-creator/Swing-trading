@@ -663,7 +663,11 @@ def render_screener(cfg: dict) -> pd.DataFrame:
     # large ranked set against 0.56% for the top 20%. Filters that shrink the
     # universe before selection quietly convert the former into the latter, and
     # nothing on screen showed it.
-    bucket_size = st.session_state.get("bucket_size", 10)
+    # .get(key, default) only falls back when the KEY is absent, not when its
+    # value is None — and a number_input can briefly hold None if the field is
+    # cleared mid-edit. The identical pattern crashed the dashboard's capital
+    # input with the same TypeError; fixed here before it does the same here.
+    bucket_size = st.session_state.get("bucket_size") or 10
     if len(filtered):
         sel = bucket_size / len(filtered)
         c3.metric(
@@ -781,8 +785,8 @@ def render_screener(cfg: dict) -> pd.DataFrame:
                 st.session_state["dashboard_html"] = dashb.build(
                     b_d.picks, fr, regime=reg.state,
                     regime_desc=reg.description,
-                    capital=float(st.session_state.get("dash_capital", 500_000)),
-                    risk_pct=float(st.session_state.get("dash_risk", 1.0)))
+                    capital=float(st.session_state.get("dash_capital") or 500_000),
+                    risk_pct=float(st.session_state.get("dash_risk") or 1.0))
             st.session_state["show_dashboard"] = True
 
     if dashb is not None and st.button("📈 30-day view", key="dash_cum",
@@ -794,8 +798,8 @@ def render_screener(cfg: dict) -> pd.DataFrame:
             cum = dashb.build_cumulative(
                 regime=reg.state,
                 full_frames=data,
-                capital=float(st.session_state.get("dash_capital", 500_000)),
-                risk_pct=float(st.session_state.get("dash_risk", 1.0)),
+                capital=float(st.session_state.get("dash_capital") or 500_000),
+                risk_pct=float(st.session_state.get("dash_risk") or 1.0),
                 with_news=False)
         if cum is None:
             st.warning("No tracker history yet — the 30-day view needs the "

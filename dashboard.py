@@ -541,6 +541,12 @@ _ROWCLS = {"Stopped": "tr-breach", "Near stop": "tr-near"}
 
 
 def _table(rows: pd.DataFrame, *, capital: float, risk_pct: float) -> str:
+    # Defensive: a caller (e.g. a Streamlit widget mid-edit, which can briefly
+    # hold None) might pass a non-numeric capital or risk_pct. Rather than
+    # crash the whole render over a Qty column, fall back to sane defaults —
+    # this exact TypeError was reproduced from `capital=None` reaching here.
+    capital = capital if isinstance(capital, (int, float)) and np.isfinite(capital) and capital > 0 else 500_000.0
+    risk_pct = risk_pct if isinstance(risk_pct, (int, float)) and np.isfinite(risk_pct) and risk_pct > 0 else 1.0
     headers = ["Ticker", "Sector", "Entry", "Last", "Stop", "Qty", "1R", "2R",
                "Room→stop", "Max DD", "Held", "Status"]
     num_cols = {"Entry", "Last", "Stop", "Qty", "1R", "2R", "Room→stop", "Max DD"}

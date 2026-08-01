@@ -155,6 +155,24 @@ tr.tr-near{background:#fff7ec}
 
 .eqwrap{background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px 16px}
 
+.rpt-toggle{display:none}
+.repeat-strip{grid-column:1/-1;display:flex;align-items:center;gap:10px;
+  background:#fafbfc;border:1px dashed var(--line);border-radius:8px;
+  padding:8px 14px;font-family:var(--mono);font-size:11px;color:var(--sub);
+  cursor:pointer;user-select:none}
+.repeat-strip:hover{background:#f1f2f4}
+.repeat-strip .n{color:var(--ink);font-weight:700}
+.repeat-strip .arrow{margin-left:auto;transition:transform .15s;display:inline-block}
+.repeat-group{grid-column:1/-1;display:none;grid-template-columns:1fr 1fr;gap:16px}
+/* Pure-CSS collapse: a hidden checkbox drives visibility via the sibling
+   selector, so no JavaScript is needed and the file stays fully static —
+   consistent with the no-JS design lock, and it still works when the file
+   is opened directly rather than rendered inside Streamlit or a browser
+   with scripting disabled. */
+.rpt-toggle:checked ~ .repeat-group{display:grid}
+.rpt-toggle:checked ~ .repeat-strip .arrow{transform:rotate(90deg)}
+@media print{.repeat-group{display:grid !important}.repeat-strip{display:none}}
+
 .legend{display:flex;flex-wrap:wrap;gap:16px;font-family:var(--mono);font-size:11px;
   color:var(--sub);margin:14px 2px 0}
 .legend span{display:inline-flex;align-items:center;gap:6px}
@@ -700,6 +718,48 @@ def _card(row: dict, *, show_runs: bool = False, news: dict | None = None) -> st
 # ---------------------------------------------------------------------------
 # Page assembly
 # ---------------------------------------------------------------------------
+def _cards_grouped(rows: list, *, show_runs: bool = False,
+                   news: dict | None = None) -> str:
+    """Cards grouped by ticker: most recent pick shown, older repeats collapsed.
+
+    Momentum is persistent, so the same ticker often re-qualifies for several
+    consecutive days. Each occurrence is a genuinely independent position —
+    its own entry, its own stop, its own outcome — so nothing is deduplicated
+    or merged. What changes is only which cards are open by default.
+
+    Collapse is pure CSS (a hidden checkbox plus a sibling selector), not
+    JavaScript, so the file stays fully static and the toggle still works
+    when printed or opened with scripting disabled.
+
+    Grouping preserves chronological order: the newest pick overall still
+    determines where a ticker's group sits in the grid, so the page reads
+    top-to-bottom by recency exactly as before.
+    """
+    from collections import OrderedDict
+    groups: OrderedDict = OrderedDict()
+    for r in rows:
+        groups.setdefault(r["Ticker"], []).append(r)
+
+    parts = []
+    gid = 0
+    for tkr, items in groups.items():
+        latest, older = items[0], items[1:]
+        parts.append(_card(latest, show_runs=show_runs, news=news))
+        if older:
+            gid += 1
+            cid = f"rpt{gid}"
+            parts.append(f'<input type="checkbox" class="rpt-toggle" id="{cid}">')
+            parts.append(
+                f'<label class="repeat-strip" for="{cid}">'
+                f'<span class="n">{len(older)}</span> earlier {_esc(tkr)} '
+                f'pick(s) — separate positions, separate entries'
+                f'<span class="arrow">&#9656;</span></label>')
+            parts.append('<div class="repeat-group">'
+                        + "".join(_card(r, show_runs=show_runs, news=news)
+                                 for r in older) + '</div>')
+    return "".join(parts)
+
+
 def _page(*, title_date, regime, kpis_html, table_html, cards_html,
           equity_html, notes, source_stamp) -> str:
     note_html = "".join(f'<div class="disclaim">{_esc(n)}</div>' for n in (notes or []))
@@ -827,7 +887,7 @@ def build(picks: pd.DataFrame, prices: dict[str, pd.DataFrame] | None = None,
     df = pd.DataFrame(rows)
     table_html = _table(df, capital=capital, risk_pct=risk_pct) if not df.empty else \
         '<div class="panel" style="padding:20px;color:var(--sub)">No picks today.</div>'
-    cards_html = "".join(_card(r) for r in rows)
+    cards_html = _cards_grouped(rows)
 
     return _page(title_date=d, regime=regime, kpis_html="".join(kpis),
                 table_html=table_html, cards_html=cards_html, equity_html="",
@@ -1024,7 +1084,7 @@ def build_cumulative(
     news = fetch_news(df["Ticker"].unique()) if with_news else None
 
     table_html = _table(df, capital=capital, risk_pct=risk_pct)
-    cards_html = "".join(_card(r, show_runs=show_runs, news=news) for r in df_rows)
+    cards_html = _cards_grouped(df_rows, show_runs=show_runs, news=news)
 
     eq_svg = _equity_curve(r_values)
     equity_html = ""

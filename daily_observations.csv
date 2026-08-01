@@ -8,3 +8,6 @@ obs_date,ticker,rank,tier,score,momentum_pct,regime,ref_close,stop_loss,stop_pct
 2026-07-30,SYRMA,1,large,99,98.11,risk_off,1437.7,1318.08,-8.32,1557.32,1676.94,119.62,Technology,True,model=momentum
 2026-07-30,ADANIENSOL,2,large,98,86.18,risk_off,1663.3,1555.52,-6.48,1771.08,1878.86,107.78,Utilities,True,model=momentum
 2026-07-30,LAURUSLABS,3,large,97,78.58,risk_off,1786.9,1697.2,-5.02,1876.6,1966.3,89.7,Healthcare,True,model=momentum
+2026-08-01,NETWEB,1,large,99,142.98,risk_off,4524.0,4135.84,-8.58,4912.16,5300.32,388.16,Technology,True,model=momentum
+2026-08-01,ADANIENSOL,2,large,98,90.81,risk_off,1645.4,1536.8,-6.6,1754.0,1862.6,108.6,Utilities,True,model=momentum
+2026-08-01,SYRMA,3,large,98,87.7,risk_off,1366.8,1251.99,-8.4,1481.61,1596.42,114.81,Technology,True,model=momentum

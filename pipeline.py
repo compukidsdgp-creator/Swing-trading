@@ -58,7 +58,6 @@ import circuit as cir        # noqa: E402
 import crash_protection as cp  # noqa: E402
 import datasource as dsrc    # noqa: E402
 import earnings as earn      # noqa: E402
-import experiments as expr   # noqa: E402
 import tiers as tr           # noqa: E402
 import config                # noqa: E402
 import forward_log as flog   # noqa: E402
@@ -755,8 +754,19 @@ def run(args) -> tuple[int, list[str], dict]:
             # Rolling window across every stock picked in the last 30 days,
             # with what happened to each since. Older observations age out, so
             # the file stays a constant size rather than growing without bound.
-            cum = dashb.build_cumulative(regime=reg.state,
-                                         sectors=ctx.get("sector_map"))
+            #
+            # full_frames supplies the 52-week range and the correlation
+            # matrix for effective bets — the tracker CSV's own short lookback
+            # cannot supply either.
+            cum = dashb.build_cumulative(
+                regime=reg.state,
+                sectors=ctx.get("sector_map"),
+                full_frames=data,
+                with_news=not args.skip_news,
+                capital=args.capital,
+                risk_pct=args.risk_pct,
+                show_runs=args.show_runs,
+            )
             if cum:
                 cum_html, cum_path = cum
                 ctx["dashboard_cumulative"] = cum_path
@@ -771,22 +781,8 @@ def run(args) -> tuple[int, list[str], dict]:
         if news_notes:
             text += "\n\nFlags:\n" + "\n".join(f"- {n}" for n in news_notes[:6])
 
-        # Experiment registry — Mondays only, and it reports the TRIAL BUDGET
-        # rather than an improvement percentage. A figure measured by the same
-        # process that produced it is not evidence.
-        if args.monthly or dt.date.today().weekday() == 0:
-            try:
-                reg = expr.registry()
-                if not reg.empty or expr.trial_count() > 36:
-                    b = expr.budget_status()
-                    text += (f"\n\n_Experiments: {b['tested']} tested, "
-                             f"{b['cleared_dsr']} cleared DSR. "
-                             f"{b['trials_used']} trials consumed — a result now "
-                             f"needs Sharpe "
-                             f"{b['hurdle_by_trials'][0]['sharpe_needed_to_clear']:.2f} "
-                             "to be believed._")
-            except Exception:                                  # noqa: BLE001
-                pass
+        # Experiment registry (experiments.py) was declined and is not part of
+        # this deployment, so no experiment-budget line is appended here.
 
         # Daily diary summary, if the tracker ran
         ts = ctx.get("tracker_stats")
@@ -884,6 +880,12 @@ def main() -> int:
                         "individual price band")
     p.add_argument("--no-log", action="store_true")
     p.add_argument("--no-pdf", action="store_true")
+    p.add_argument("--capital", type=float, default=500_000.0,
+                   help="account size, for the Qty column on the dashboard")
+    p.add_argument("--risk-pct", type=float, default=1.0,
+                   help="risk per trade as a percentage of capital")
+    p.add_argument("--show-runs", action="store_true",
+                   help="show the momentum-run histogram on each chart card")
     p.add_argument("--no-dashboard", action="store_true",
                    help="skip the HTML dashboard")
     p.add_argument("--notify", action="store_true")

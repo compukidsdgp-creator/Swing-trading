@@ -297,6 +297,16 @@ def sidebar() -> dict:
             help="Without this, a percentile rank promotes the best of a falling "
                  "market and stamps it 100. Strongly recommended.",
         )
+        st.sidebar.number_input(
+            "Capital (₹)", 50_000, 50_000_000, 500_000, 50_000,
+            key="dash_capital",
+            help="Used for the Qty column on the dashboard. Quantity is "
+                 "risk ÷ stop distance, so it falls out of the stop rather "
+                 "than being chosen.")
+        st.sidebar.slider("Risk per trade %", 0.25, 3.0, 1.0, 0.25,
+                          key="dash_risk",
+                          help="The most you lose if the stop hits. 1% means "
+                               "twenty consecutive losses costs 20%.")
         exclude_small = st.sidebar.checkbox(
             "Exclude small caps", value=True,
             help="0.96% round-trip cost against a ~2% long-only edge. The "
@@ -770,13 +780,23 @@ def render_screener(cfg: dict) -> pd.DataFrame:
                 fr = fetch_history(tk, period="6mo")
                 st.session_state["dashboard_html"] = dashb.build(
                     b_d.picks, fr, regime=reg.state,
-                    regime_desc=reg.description)
+                    regime_desc=reg.description,
+                    capital=float(st.session_state.get("dash_capital", 500_000)),
+                    risk_pct=float(st.session_state.get("dash_risk", 1.0)))
             st.session_state["show_dashboard"] = True
 
     if dashb is not None and st.button("📈 30-day view", key="dash_cum",
                                        use_container_width=True):
         with st.spinner("Building rolling 30-day view…"):
-            cum = dashb.build_cumulative(regime=reg.state)
+            # Full frames supply the 52-week range and correlation matrix.
+            # News is off here to keep the app responsive; the scheduled run
+            # includes it.
+            cum = dashb.build_cumulative(
+                regime=reg.state,
+                full_frames=data,
+                capital=float(st.session_state.get("dash_capital", 500_000)),
+                risk_pct=float(st.session_state.get("dash_risk", 1.0)),
+                with_news=False)
         if cum is None:
             st.warning("No tracker history yet — the 30-day view needs the "
                        "daily tracker to have run at least once.")

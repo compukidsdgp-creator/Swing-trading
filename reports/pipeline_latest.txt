@@ -1,5 +1,5 @@
 ==================================================================
-SwingScope pipeline — 2026-08-04 06:10
+SwingScope pipeline — 2026-08-05 06:06
 ==================================================================
 
 [1/10] Universe
@@ -12,18 +12,18 @@ SwingScope pipeline — 2026-08-04 06:10
   400 of 400 tickers returned usable history
   schema: 400 frames validated, no critical violations
   health: 4/4 checks passed
-  provenance: code 26ff3b018f22e55c · data b2af7e4b03341a9c · git 9609d1f
+  provenance: code 26ff3b018f22e55c · data 90fac913e17cadba · git 51684c0
 
 [3/10] Regime
-  RISK_OFF — Nifty -0.9% vs 200DMA, breadth 66%
+  RISK_OFF — Nifty -0.7% vs 200DMA, breadth 66%
   Tiers permitted: large
-  breadth strong: 66% above 50DMA · 64% above 200DMA · A/D 2.81 · 31H/1L
+  breadth strong: 66% above 50DMA · 64% above 200DMA · A/D 1.23 · 21H/0L
   macro: vol=normal rate=neutral favourable=True (confidence high)
 
 [4/10] Screener
   model: 12-1 momentum (20y: IC +0.031, Newey-West t = 2.74, 201 windows)
-  ranked 141 stocks by cross-sectional momentum
-  selectivity: 10 of 141 = top 7.1%
+  ranked 149 stocks by cross-sectional momentum
+  selectivity: 10 of 149 = top 6.7%
   small caps excluded — 0.96% round-trip cost (0.26% charges + 0.70% slippage)
 
 [5/10] Bucket
@@ -40,24 +40,22 @@ SwingScope pipeline — 2026-08-04 06:10
   skipped
 
 [5b] Crash protection
-  realised vol 20.1% vs 12% target -> exposure 60%  [basket proxy (insufficient strategy history)]
-  DEFENSIVE: Realised volatility 20.1% is well above the 12% target — exposure cut to 60%. Elevated momentum vola
+  realised vol 19.6% vs 12% target -> exposure 61%  [basket proxy (insufficient strategy history)]
+  DEFENSIVE: Realised volatility 19.6% is well above the 12% target — exposure cut to 61%. Elevated momentum vola
   market crash-risk state: normal
 
 [6b] Daily tracker
-  +3 observations, +16 price rows
+  +3 observations, +15 price rows
   tracking 7 tickers
   workbook: reports/daily_tracker.xlsx
 
 [6c] Earnings window
-  results season until 2026-08-15 (11 days) — expect exclusions
-  3 checked: 0 clear, 0 report inside the window, 3 unknown
+  results season until 2026-08-15 (10 days) — expect exclusions
+  3 checked: 1 clear, 0 report inside the window, 2 unknown
     VERIFY  HFCL: no date retrievable
     VERIFY  NETWEB: no date retrievable
-    VERIFY  NATIONALUM: no date retrievable
   · Today falls inside a typical Indian results season (mid-Jan, mid-Apr, mid-Jul, mid-Oct). Expect more
-  · 3 pick(s) have no retrievable date. yfinance coverage of Indian earnings is incomplete — verify on n
-  · No picks are clear of earnings. During results season that is normal, and the honest response is usu
+  · 2 pick(s) have no retrievable date. yfinance coverage of Indian earnings is incomplete — verify on n
 
 [7/10] Forward log
   nothing to record
@@ -67,16 +65,16 @@ SwingScope pipeline — 2026-08-04 06:10
   no evaluated picks yet (6 still open)
 
 [9/10] Report
-  wrote html: reports/report_20260804.html
+  wrote html: reports/report_20260805.html
 
 [9b] Dashboard
-  daily: reports/dashboard_20260804.html (28,068 chars)
-  cumulative: reports/dashboard_cumulative_20260804.html (91,493 chars)
+  daily: reports/dashboard_20260805.html (28,096 chars)
+  cumulative: reports/dashboard_cumulative_20260805.html (112,018 chars)
 
 [10/10] Notify
-  attaching daily dashboard: dashboard_20260804.html
-  attaching 30-day dashboard: dashboard_cumulative_20260804.html
-  attaching workbook: daily_tracker.xlsx (16 KB)
+  attaching daily dashboard: dashboard_20260805.html
+  attaching 30-day dashboard: dashboard_cumulative_20260805.html
+  attaching workbook: daily_tracker.xlsx (17 KB)
   {'telegram': True}
 
 ------------------------------------------------------------------

@@ -118,19 +118,6 @@ def _to_ns(symbols) -> tuple[str, ...]:
 
 
 @st.cache_data(ttl=60 * 60 * 12, show_spinner=False)
-def _fetch_live_with_retry(fn, *args, **kwargs):
-    """Wrap an NSE call in transient-failure retry.
-
-    NSE rate-limits and rotates bot defences. A cached fallback already exists,
-    but retrying first means the fallback is used only when NSE is genuinely
-    unavailable rather than momentarily busy — which keeps the constituent list
-    fresher.
-    """
-    res, _ = resil.call_with_retry(fn, *args, max_attempts=2, base_delay=3.0,
-                                   **kwargs)
-    return res
-
-
 def fetch_index_constituents(index_name: str) -> UniverseResult:
     """Pull an index's live constituent list from the NSE archive CSV.
 
@@ -141,12 +128,21 @@ def fetch_index_constituents(index_name: str) -> UniverseResult:
     if not filename:
         return _fallback(index_name, now, "Unknown index name.")
 
-    try:
+    def _get():
         sess = _session()
         resp = sess.get(ARCHIVE.format(file=filename), timeout=12)
         resp.raise_for_status()
-        df = pd.read_csv(io.StringIO(resp.text))
-    except (requests.RequestException, pd.errors.ParserError, ValueError) as exc:
+        return pd.read_csv(io.StringIO(resp.text))
+
+    # Retry transient failures (rate limits, resets) before falling back to
+    # the cached universe. This is what actually protects the button that
+    # calls this function directly — a bare request here previously meant
+    # one flaky NSE response fell straight through to the stale fallback.
+    try:
+        df, stats = resil.call_with_retry(_get, max_attempts=2, base_delay=3.0)
+        if df is None:
+            raise RuntimeError(stats.last_error or "fetch failed")
+    except Exception as exc:                                   # noqa: BLE001
         return _fallback(index_name, now, f"NSE fetch failed ({type(exc).__name__}).")
 
     col = next((c for c in df.columns if c.strip().lower() == "symbol"), None)

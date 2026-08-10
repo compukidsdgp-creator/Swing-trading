@@ -5,3 +5,6 @@ snapshot_date,ticker,tier,score,rank,regime,price_at_pick,horizon_days,target_ev
 2026-08-03,HFCL,large,100,1,risk_off,199.33,30,2026-09-15,,,,,open,,,
 2026-08-03,NETWEB,large,99,2,risk_off,4598.3,30,2026-09-15,,,,,open,,,
 2026-08-03,ADANIENSOL,large,97,3,risk_off,1646.0,30,2026-09-15,,,,,open,,,
+2026-08-10,HFCL,large,100,1,risk_off,212.0,30,2026-09-22,,,,,open,,,
+2026-08-10,ADANIENSOL,large,99,2,risk_off,1619.4,30,2026-09-22,,,,,open,,,
+2026-08-10,HINDCOPPER,large,98,3,risk_off,538.75,30,2026-09-22,,,,,open,,,

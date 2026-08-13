@@ -29,3 +29,6 @@ obs_date,ticker,rank,tier,score,momentum_pct,regime,ref_close,stop_loss,stop_pct
 2026-08-12,HFCL,1,large,100,193.92,risk_off,216.81,196.21,-9.5,237.41,258.01,20.6,Technology,True,model=momentum
 2026-08-12,IDEA,2,large,99,105.6,risk_off,13.49,12.72,-5.71,14.26,15.03,0.77,Communication Services,True,model=momentum
 2026-08-12,HINDCOPPER,3,large,99,104.76,risk_off,568.6,531.64,-6.5,605.56,642.52,36.96,Basic Materials,True,model=momentum
+2026-08-13,HFCL,1,large,100,206.24,risk_off,229.55,209.53,-8.72,249.57,269.59,20.02,Technology,True,model=momentum
+2026-08-13,IDEA,2,large,99,109.98,risk_off,13.79,13.02,-5.58,14.56,15.33,0.77,Communication Services,True,model=momentum
+2026-08-13,ADANIENSOL,3,large,99,112.36,risk_off,1591.5,1491.87,-6.26,1691.13,1790.76,99.63,Utilities,True,model=momentum

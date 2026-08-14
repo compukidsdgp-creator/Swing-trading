@@ -1,5 +1,5 @@
 ==================================================================
-SwingScope pipeline — 2026-08-13 05:17
+SwingScope pipeline — 2026-08-14 05:15
 ==================================================================
 
 [1/10] Universe
@@ -12,18 +12,18 @@ SwingScope pipeline — 2026-08-13 05:17
   400 of 400 tickers returned usable history
   schema: 400 frames validated, no critical violations
   health: 4/4 checks passed
-  provenance: code 26ff3b018f22e55c · data 7ff3a6e1787a7af5 · git 5adf33c
+  provenance: code 26ff3b018f22e55c · data 55d9419331096b22 · git 7192f54
 
 [3/10] Regime
-  RISK_OFF — Nifty -1.6% vs 200DMA, breadth 63%
+  RISK_OFF — Nifty -1.8% vs 200DMA, breadth 64%
   Tiers permitted: large
-  breadth strong: 63% above 50DMA · 65% above 200DMA · A/D 0.89 · 16H/0L
+  breadth strong: 64% above 50DMA · 65% above 200DMA · A/D 0.55 · 13H/2L
   macro: vol=normal rate=neutral favourable=True (confidence high)
 
 [4/10] Screener
   model: 12-1 momentum (20y: IC +0.031, Newey-West t = 2.74, 201 windows)
-  ranked 150 stocks by cross-sectional momentum
-  selectivity: 10 of 150 = top 6.7%
+  ranked 151 stocks by cross-sectional momentum
+  selectivity: 10 of 151 = top 6.6%
   small caps excluded — 0.96% round-trip cost (0.26% charges + 0.70% slippage)
 
 [5/10] Bucket
@@ -49,12 +49,11 @@ SwingScope pipeline — 2026-08-13 05:17
   workbook: reports/daily_tracker.xlsx
 
 [6c] Earnings window
-  results season until 2026-08-15 (2 days) — expect exclusions
-  3 checked: 1 clear, 0 report inside the window, 2 unknown
+  results season until 2026-08-15 (1 days) — expect exclusions
+  3 checked: 2 clear, 0 report inside the window, 1 unknown
     VERIFY  HFCL: no date retrievable
-    VERIFY  IDEA: no date retrievable
   · Today falls inside a typical Indian results season (mid-Jan, mid-Apr, mid-Jul, mid-Oct). Expect more
-  · 2 pick(s) have no retrievable date. yfinance coverage of Indian earnings is incomplete — verify on n
+  · 1 pick(s) have no retrievable date. yfinance coverage of Indian earnings is incomplete — verify on n
 
 [7/10] Forward log
   nothing to record
@@ -64,16 +63,16 @@ SwingScope pipeline — 2026-08-13 05:17
   no evaluated picks yet (9 still open)
 
 [9/10] Report
-  wrote html: reports/report_20260813.html
+  wrote html: reports/report_20260814.html
 
 [9b] Dashboard
-  daily: reports/dashboard_20260813.html (28,051 chars)
-  cumulative: reports/dashboard_cumulative_20260813.html (214,644 chars)
+  daily: reports/dashboard_20260814.html (28,051 chars)
+  cumulative: reports/dashboard_cumulative_20260814.html (235,326 chars)
 
 [10/10] Notify
-  attaching daily dashboard: dashboard_20260813.html
-  attaching 30-day dashboard: dashboard_cumulative_20260813.html
-  attaching workbook: daily_tracker.xlsx (24 KB)
+  attaching daily dashboard: dashboard_20260814.html
+  attaching 30-day dashboard: dashboard_cumulative_20260814.html
+  attaching workbook: daily_tracker.xlsx (25 KB)
   {'telegram': True}
 
 ------------------------------------------------------------------

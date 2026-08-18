@@ -1,5 +1,5 @@
 ==================================================================
-SwingScope pipeline — 2026-08-17 04:09
+SwingScope pipeline — 2026-08-18 04:08
 ==================================================================
 
 [1/10] Universe
@@ -12,38 +12,41 @@ SwingScope pipeline — 2026-08-17 04:09
   400 of 400 tickers returned usable history
   schema: 400 frames validated, no critical violations
   health: 4/4 checks passed
-  provenance: code 26ff3b018f22e55c · data f8f8c3bacd8bb50f · git a9c5ddd
+  provenance: code 26ff3b018f22e55c · data 7427df637d12f720 · git 9d31406
 
 [3/10] Regime
-  RISK_OFF — Nifty -1.8% vs 200DMA, breadth 61%
+  RISK_OFF — Nifty -2.0% vs 200DMA, breadth 61%
   Tiers permitted: large
-  breadth strong: 61% above 50DMA · 64% above 200DMA · A/D 0.68 · 11H/1L
+  breadth strong: 61% above 50DMA · 65% above 200DMA · A/D 0.77 · 12H/2L
   macro: vol=normal rate=neutral favourable=True (confidence high)
 
 [4/10] Screener
   model: 12-1 momentum (20y: IC +0.031, Newey-West t = 2.74, 201 windows)
-  ranked 146 stocks by cross-sectional momentum
-  selectivity: 10 of 146 = top 6.8%
+  ranked 152 stocks by cross-sectional momentum
+  selectivity: 10 of 152 = top 6.6%
   small caps excluded — 0.96% round-trip cost (0.26% charges + 0.70% slippage)
 
 [5/10] Bucket
   sector data for 40 of 40 candidates
   bucket: 3 of 3 target — mix {'large': 3}
-  · Regime risk off: excluded 21 candidates in disallowed tiers (permitted: large).
+  · Regime risk off: excluded 24 candidates in disallowed tiers (permitted: large).
   · Bucket capped at 3 by the risk off regime (requested 10).
 
   exit-liquidity check (F&O list: 214 symbols, NSE live)
     all picks pass — stops are reachable
 
 [6/10] News sentiment
-  HFCL           Mixed            +0.47 (8 items)
-  IDEA           Bullish          +0.92 (8 items)
-  ADANIENSOL     Bullish          +0.79 (8 items)  <-- EARNINGS in feed, check the date
+  skipped
 
 [5b] Crash protection
-  realised vol 19.3% vs 12% target -> exposure 62%  [basket proxy (insufficient strategy history)]
+  realised vol 19.2% vs 12% target -> exposure 62%  [basket proxy (insufficient strategy history)]
   DEFENSIVE: Realised volatility 19.3% is well above the 12% target — exposure cut to 62%. Elevated momentum vola
   market crash-risk state: normal
+
+[6b] Daily tracker
+  +3 observations, +18 price rows
+  tracking 9 tickers
+  workbook: reports/daily_tracker.xlsx
 
 [6c] Earnings window
   3 checked: 2 clear, 0 report inside the window, 1 unknown
@@ -51,23 +54,23 @@ SwingScope pipeline — 2026-08-17 04:09
   · 1 pick(s) have no retrievable date. yfinance coverage of Indian earnings is incomplete — verify on n
 
 [7/10] Forward log
-  recorded 3 picks (log now 12 rows)
+  nothing to record
 
 [8/10] Evaluate matured picks
-  evaluated 3 (of 7 open)
+  evaluated 0 (of 5 open)
   forward: 3 picks, mean +5.93%, IC None
-  vs backtest IC 0.0311: Need both a forward log and a validation run to compare.
 
 [9/10] Report
-  wrote html: reports/report_20260817.html
+  wrote html: reports/report_20260818.html
 
 [9b] Dashboard
-  daily: reports/dashboard_20260817.html (28,052 chars)
-  cumulative: reports/dashboard_cumulative_20260814.html (250,107 chars)
+  daily: reports/dashboard_20260818.html (28,051 chars)
+  cumulative: reports/dashboard_cumulative_20260818.html (259,512 chars)
 
 [10/10] Notify
-  attaching daily dashboard: dashboard_20260817.html
-  attaching 30-day dashboard: dashboard_cumulative_20260814.html
+  attaching daily dashboard: dashboard_20260818.html
+  attaching 30-day dashboard: dashboard_cumulative_20260818.html
+  attaching workbook: daily_tracker.xlsx (26 KB)
   {'telegram': True}
 
 ------------------------------------------------------------------

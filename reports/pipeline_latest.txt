@@ -1,5 +1,5 @@
 ==================================================================
-SwingScope pipeline — 2026-08-18 04:08
+SwingScope pipeline — 2026-08-19 04:07
 ==================================================================
 
 [1/10] Universe
@@ -12,24 +12,24 @@ SwingScope pipeline — 2026-08-18 04:08
   400 of 400 tickers returned usable history
   schema: 400 frames validated, no critical violations
   health: 4/4 checks passed
-  provenance: code 26ff3b018f22e55c · data 7427df637d12f720 · git 9d31406
+  provenance: code 26ff3b018f22e55c · data 437868c2ced3a6f1 · git af55bac
 
 [3/10] Regime
-  RISK_OFF — Nifty -2.0% vs 200DMA, breadth 61%
+  RISK_OFF — Nifty -2.6% vs 200DMA, breadth 58%
   Tiers permitted: large
-  breadth strong: 61% above 50DMA · 65% above 200DMA · A/D 0.77 · 12H/2L
+  breadth healthy: 58% above 50DMA · 63% above 200DMA · A/D 0.44 · 10H/3L
   macro: vol=normal rate=neutral favourable=True (confidence high)
 
 [4/10] Screener
   model: 12-1 momentum (20y: IC +0.031, Newey-West t = 2.74, 201 windows)
-  ranked 152 stocks by cross-sectional momentum
-  selectivity: 10 of 152 = top 6.6%
+  ranked 141 stocks by cross-sectional momentum
+  selectivity: 10 of 141 = top 7.1%
   small caps excluded — 0.96% round-trip cost (0.26% charges + 0.70% slippage)
 
 [5/10] Bucket
   sector data for 40 of 40 candidates
   bucket: 3 of 3 target — mix {'large': 3}
-  · Regime risk off: excluded 24 candidates in disallowed tiers (permitted: large).
+  · Regime risk off: excluded 20 candidates in disallowed tiers (permitted: large).
   · Bucket capped at 3 by the risk off regime (requested 10).
 
   exit-liquidity check (F&O list: 214 symbols, NSE live)
@@ -40,18 +40,19 @@ SwingScope pipeline — 2026-08-18 04:08
 
 [5b] Crash protection
   realised vol 19.2% vs 12% target -> exposure 62%  [basket proxy (insufficient strategy history)]
-  DEFENSIVE: Realised volatility 19.3% is well above the 12% target — exposure cut to 62%. Elevated momentum vola
+  DEFENSIVE: Realised volatility 19.2% is well above the 12% target — exposure cut to 63%. Elevated momentum vola
   market crash-risk state: normal
 
 [6b] Daily tracker
-  +3 observations, +18 price rows
+  +3 observations, +9 price rows
   tracking 9 tickers
   workbook: reports/daily_tracker.xlsx
 
 [6c] Earnings window
-  3 checked: 2 clear, 0 report inside the window, 1 unknown
+  3 checked: 1 clear, 0 report inside the window, 2 unknown
     VERIFY  HFCL: no date retrievable
-  · 1 pick(s) have no retrievable date. yfinance coverage of Indian earnings is incomplete — verify on n
+    VERIFY  HINDCOPPER: no date retrievable
+  · 2 pick(s) have no retrievable date. yfinance coverage of Indian earnings is incomplete — verify on n
 
 [7/10] Forward log
   nothing to record
@@ -61,16 +62,16 @@ SwingScope pipeline — 2026-08-18 04:08
   forward: 3 picks, mean +5.93%, IC None
 
 [9/10] Report
-  wrote html: reports/report_20260818.html
+  wrote html: reports/report_20260819.html
 
 [9b] Dashboard
-  daily: reports/dashboard_20260818.html (28,051 chars)
-  cumulative: reports/dashboard_cumulative_20260818.html (259,512 chars)
+  daily: reports/dashboard_20260819.html (28,024 chars)
+  cumulative: reports/dashboard_cumulative_20260819.html (281,151 chars)
 
 [10/10] Notify
-  attaching daily dashboard: dashboard_20260818.html
-  attaching 30-day dashboard: dashboard_cumulative_20260818.html
-  attaching workbook: daily_tracker.xlsx (26 KB)
+  attaching daily dashboard: dashboard_20260819.html
+  attaching 30-day dashboard: dashboard_cumulative_20260819.html
+  attaching workbook: daily_tracker.xlsx (27 KB)
   {'telegram': True}
 
 ------------------------------------------------------------------

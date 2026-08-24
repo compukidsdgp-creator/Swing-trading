@@ -11,3 +11,6 @@ snapshot_date,ticker,tier,score,rank,regime,price_at_pick,horizon_days,target_ev
 2026-08-17,HFCL,large,100,1,risk_off,224.22,30,2026-09-29,,,,,open,,,
 2026-08-17,IDEA,large,99,2,risk_off,14.01,30,2026-09-29,,,,,open,,,
 2026-08-17,ADANIENSOL,large,99,3,risk_off,1619.8,30,2026-09-29,,,,,open,,,
+2026-08-24,HFCL,large,100,1,risk_off,235.06,30,2026-10-06,,,,,open,,,
+2026-08-24,RRKABEL,large,99,2,risk_off,2952.9,30,2026-10-06,,,,,open,,,
+2026-08-24,HINDCOPPER,large,98,3,risk_off,568.55,30,2026-10-06,,,,,open,,,

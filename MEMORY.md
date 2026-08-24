@@ -2,7 +2,7 @@
 
 *Single source of truth. Update this file whenever a number changes.*
 
-*Last updated: 30 July 2026*
+*Last updated: 23 August 2026*
 
 ---
 
@@ -43,6 +43,14 @@ POINT-IN-TIME — 30 windows, 2022-08 to 2026-05, run 30 Jul 2026
   Survivorship inflation: 15.6%
   Gross spread: 2.284% (PIT) vs 2.742% (standard)
   Universe churn: 44.6% between observations
+
+LARGE-SAMPLE RE-VALIDATION — 74 windows, 2017-2026, run 23 Aug 2026
+  10yr bhavcopy archive, 3362 symbols, 1462 delisted included
+  IC 0.0484 (t=2.57), net +9.11% annualised -- ATTRACTIVE BUT FAILS DSR
+  Deflated Sharpe at trial #38: 9.6% (FAIL) -- do NOT use to raise confidence
+  Robust finding kept: survivorship bias measured at ~0% (PIT slightly
+  HIGHER than survivors-only, same-source comparison, 73 windows)
+  Benchmark UNCHANGED at 0.0262. See full section below for caveats.
 
 SUPERSEDED — do not use
   5-year: IC 0.076, spread 1.42%. Did not generalise.
@@ -113,6 +121,66 @@ sample with the bias correction.
 
 If forward IC lands near 0.0579 that is a good outcome, not merely an adequate
 one. If it lands near 0.026 it is in line with expectation.
+
+---
+
+### Large-sample survivorship-free re-validation (23 Aug 2026) — confirmatory, not a benchmark change
+
+A user-supplied 10-year NSE bhavcopy archive (2016–2026, 2,703 trading days,
+3,362 reconstructed symbols including 1,462 that stopped trading) made a much
+larger, genuinely survivorship-free re-validation possible — replicating the
+live model's exact configuration: 400-stock PIT-liquidity universe, small-cap
+tier exclusion via the codebase's own turnover fallback, top-10 bucket, real
+tier-based round-trip costs.
+
+**Result, 74 non-overlapping windows, 2017–2026:**
+
+| Metric | Value |
+|---|---|
+| Mean IC | +0.0484 (t = 2.57, Newey-West) |
+| Gross spread | +2.02% (t = 2.97) |
+| Net annualised return | +9.11% |
+| Win rate | 59.5% |
+
+Checked for outlier distortion (mean/median gap 0.35pp — clean) before trusting
+these.
+
+**The one robust, keepable finding: survivorship bias measured at ~0%.**
+Comparing PIT (all symbols that traded) against survivors-only, using the
+*identical* data source and reconstruction method for both sides — the only
+difference is inclusion of delisted names — PIT scored a touch *higher* than
+survivors-only (0.0617 vs 0.0592 IC on a 73-window sub-test). This is a
+within-test comparison, not a search across configurations, so it does not
+carry the multiple-testing problem below. Take it as confirmation that the
+strategy's edge is not an artefact of a survivors-only universe.
+
+**The flattering absolute numbers above do NOT clear DSR and must not be used
+to raise confidence or loosen any threshold.** Run against the honest trial
+count (36 historical + this re-validation itself = 38):
+
+```
+Observed Sharpe (per-cycle): 0.097
+Noise alone, best of 38 trials: 0.254
+Deflated Sharpe: 9.6%  [FAIL]
+```
+
+Not distinguishable from the best of 38 random attempts. The same discipline
+that sank the original backtest to 12% DSR applies here — a new angle
+producing an attractive number is still a number that needs correcting for how
+many times the data has been looked at.
+
+**Benchmark unchanged: 0.0262.** This re-validation is confirmatory evidence
+about data integrity (survivorship bias is measured, not estimated, and is
+near-zero) — not grounds to expect a bigger edge than already priced into the
+forward-log decision table.
+
+**Known limitations of this re-run**, for anyone repeating it: tier
+classification used the turnover-based fallback (no historical market cap
+available), universe was PIT-liquidity-based rather than true historical
+Nifty 500 membership (no reliable index-membership-history source was
+available — a supplied "index membership history" file turned out to contain
+no populated membership data on inspection), and no sector cap was applied
+(no historical sector mapping available for delisted names).
 
 ---
 

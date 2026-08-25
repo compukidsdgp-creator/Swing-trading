@@ -47,3 +47,6 @@ obs_date,ticker,rank,tier,score,momentum_pct,regime,ref_close,stop_loss,stop_pct
 2026-08-21,HFCL,1,large,100,207.05,risk_off,226.15,206.79,-8.56,245.51,264.87,19.36,Technology,True,model=momentum
 2026-08-21,HINDCOPPER,2,large,99,105.17,risk_off,576.65,533.86,-7.42,619.44,662.23,42.79,Basic Materials,True,model=momentum
 2026-08-21,IDEA,3,large,99,104.33,risk_off,14.0,13.2,-5.71,14.8,15.6,0.8,Communication Services,True,model=momentum
+2026-08-25,HFCL,1,large,100,164.86,risk_off,240.25,220.98,-8.02,259.52,278.79,19.27,Technology,True,model=momentum
+2026-08-25,NETWEB,2,large,99,111.42,risk_off,5297.1,4795.99,-9.46,5798.21,6299.32,501.11,Technology,True,model=momentum
+2026-08-25,HINDCOPPER,3,large,98,102.52,risk_off,536.6,491.31,-8.44,581.89,627.18,45.29,Basic Materials,True,model=momentum

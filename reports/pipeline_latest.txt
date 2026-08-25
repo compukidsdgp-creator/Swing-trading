@@ -1,5 +1,5 @@
 ==================================================================
-SwingScope pipeline — 2026-08-24 04:12
+SwingScope pipeline — 2026-08-25 04:08
 ==================================================================
 
 [1/10] Universe
@@ -12,65 +12,69 @@ SwingScope pipeline — 2026-08-24 04:12
   400 of 400 tickers returned usable history
   schema: 400 frames validated, no critical violations
   health: 4/4 checks passed
-  provenance: code 26ff3b018f22e55c · data 667c530b912e6b20 · git 6456dff
+  provenance: code 26ff3b018f22e55c · data e705b04663800e3d · git 0feef35
 
 [3/10] Regime
-  RISK_OFF — Nifty -1.7% vs 200DMA, breadth 60%
+  RISK_OFF — Nifty -2.0% vs 200DMA, breadth 58%
   Tiers permitted: large
-  breadth strong: 60% above 50DMA · 67% above 200DMA · A/D 1.78 · 12H/0L
-  macro: vol=calm rate=neutral favourable=True (confidence high)
+  breadth healthy: 58% above 50DMA · 66% above 200DMA · A/D 0.78 · 6H/1L
+  macro: vol=normal rate=neutral favourable=True (confidence high)
 
 [4/10] Screener
   model: 12-1 momentum (20y: IC +0.031, Newey-West t = 2.74, 201 windows)
-  ranked 133 stocks by cross-sectional momentum
-  selectivity: 10 of 133 = top 7.5%
+  ranked 138 stocks by cross-sectional momentum
+  selectivity: 10 of 138 = top 7.2%
   small caps excluded — 0.96% round-trip cost (0.26% charges + 0.70% slippage)
 
 [5/10] Bucket
   sector data for 40 of 40 candidates
   bucket: 3 of 3 target — mix {'large': 3}
-  · Regime risk off: excluded 20 candidates in disallowed tiers (permitted: large).
+  · Regime risk off: excluded 22 candidates in disallowed tiers (permitted: large).
   · Bucket capped at 3 by the risk off regime (requested 10).
+  · Sector cap reached: Technology (max 2 each).
 
   exit-liquidity check (F&O list: 214 symbols, NSE live)
     all picks pass — stops are reachable
 
 [6/10] News sentiment
-  HFCL           Mixed            +0.66 (8 items)
-  RRKABEL        Mixed            +0.14 (8 items)
-  HINDCOPPER     Mixed            +0.60 (8 items)
+  skipped
 
 [5b] Crash protection
-  realised vol 19.2% vs 12% target -> exposure 63%  [basket proxy (insufficient strategy history)]
-  DEFENSIVE: Realised volatility 19.2% is well above the 12% target — exposure cut to 63%. Elevated momentum vola
+  realised vol 19.1% vs 12% target -> exposure 63%  [basket proxy (insufficient strategy history)]
+  DEFENSIVE: Realised volatility 19.1% is well above the 12% target — exposure cut to 63%. Elevated momentum vola
   market crash-risk state: normal
+
+[6b] Daily tracker
+  +3 observations, +17 price rows
+  tracking 10 tickers
+  workbook: reports/daily_tracker.xlsx
 
 [6c] Earnings window
   3 checked: 0 clear, 0 report inside the window, 3 unknown
     VERIFY  HFCL: no date retrievable
-    VERIFY  RRKABEL: no date retrievable
+    VERIFY  NETWEB: no date retrievable
     VERIFY  HINDCOPPER: no date retrievable
   · 3 pick(s) have no retrievable date. yfinance coverage of Indian earnings is incomplete — verify on n
   · No picks are clear of earnings. During results season that is normal, and the honest response is usu
 
 [7/10] Forward log
-  recorded 3 picks (log now 15 rows)
+  nothing to record
 
 [8/10] Evaluate matured picks
   evaluated 0 (of 6 open)
   forward: 3 picks, mean +5.93%, IC None
-  vs backtest IC 0.0311: Need both a forward log and a validation run to compare.
 
 [9/10] Report
-  wrote html: reports/report_20260824.html
+  wrote html: reports/report_20260825.html
 
 [9b] Dashboard
-  daily: reports/dashboard_20260824.html (28,067 chars)
-  cumulative: reports/dashboard_cumulative_20260821.html (344,356 chars)
+  daily: reports/dashboard_20260825.html (28,064 chars)
+  cumulative: reports/dashboard_cumulative_20260825.html (349,589 chars)
 
 [10/10] Notify
-  attaching daily dashboard: dashboard_20260824.html
-  attaching 30-day dashboard: dashboard_cumulative_20260821.html
+  attaching daily dashboard: dashboard_20260825.html
+  attaching 30-day dashboard: dashboard_cumulative_20260825.html
+  attaching workbook: daily_tracker.xlsx (31 KB)
   {'telegram': True}
 
 ------------------------------------------------------------------

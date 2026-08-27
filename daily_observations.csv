@@ -53,3 +53,6 @@ obs_date,ticker,rank,tier,score,momentum_pct,regime,ref_close,stop_loss,stop_pct
 2026-08-26,HFCL,1,large,100,156.26,risk_off,239.28,220.76,-7.74,257.8,276.32,18.52,Technology,True,model=momentum
 2026-08-26,NETWEB,2,large,99,111.42,risk_off,5379.9,4891.41,-9.08,5868.39,6356.88,488.49,Technology,True,model=momentum
 2026-08-26,ADANIENSOL,3,large,97,106.15,risk_off,1626.0,1532.34,-5.76,1719.66,1813.32,93.66,Utilities,True,model=momentum
+2026-08-27,HFCL,1,large,100,161.1,risk_off,245.84,226.42,-7.9,265.26,284.68,19.42,Technology,True,model=momentum
+2026-08-27,ADANIENSOL,2,large,98,106.99,risk_off,1617.0,1519.33,-6.04,1714.67,1812.34,97.67,Utilities,True,model=momentum
+2026-08-27,LAURUSLABS,3,large,97,104.37,risk_off,1929.4,1846.44,-4.3,2012.36,2095.32,82.96,Healthcare,True,model=momentum

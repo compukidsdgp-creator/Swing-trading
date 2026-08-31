@@ -14,3 +14,6 @@ snapshot_date,ticker,tier,score,rank,regime,price_at_pick,horizon_days,target_ev
 2026-08-24,HFCL,large,100,1,risk_off,235.06,30,2026-10-06,,,,,open,,,
 2026-08-24,RRKABEL,large,99,2,risk_off,2952.9,30,2026-10-06,,,,,open,,,
 2026-08-24,HINDCOPPER,large,98,3,risk_off,568.55,30,2026-10-06,,,,,open,,,
+2026-08-31,HFCL,large,100,1,risk_off,248.4,30,2026-10-13,,,,,open,,,
+2026-08-31,LAURUSLABS,large,99,2,risk_off,1862.8,30,2026-10-13,,,,,open,,,
+2026-08-31,NETWEB,large,98,3,risk_off,5178.3,30,2026-10-13,,,,,open,,,

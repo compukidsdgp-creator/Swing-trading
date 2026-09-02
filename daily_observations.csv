@@ -62,3 +62,6 @@ obs_date,ticker,rank,tier,score,momentum_pct,regime,ref_close,stop_loss,stop_pct
 2026-09-01,HFCL,1,large,100,188.78,risk_off,236.64,216.38,-8.56,256.9,277.16,20.26,Technology,True,model=momentum
 2026-09-01,LAURUSLABS,2,large,98,111.77,risk_off,1846.9,1752.71,-5.1,1941.09,2035.28,94.19,Healthcare,True,model=momentum
 2026-09-01,NETWEB,3,large,97,107.74,risk_off,5149.0,4677.35,-9.16,5620.65,6092.3,471.65,Technology,True,model=momentum
+2026-09-02,HFCL,1,large,100,184.69,risk_off,231.8,211.17,-8.9,252.43,273.06,20.63,Technology,True,model=momentum
+2026-09-02,LAURUSLABS,2,large,98,115.51,risk_off,1844.5,1749.32,-5.16,1939.68,2034.86,95.18,Healthcare,True,model=momentum
+2026-09-02,NETWEB,3,large,97,113.28,risk_off,5088.5,4625.45,-9.1,5551.55,6014.6,463.05,Technology,True,model=momentum

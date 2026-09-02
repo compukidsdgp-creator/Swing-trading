@@ -1,5 +1,5 @@
 ==================================================================
-SwingScope pipeline — 2026-09-01 08:50
+SwingScope pipeline — 2026-09-02 08:03
 ==================================================================
 
 [1/10] Universe
@@ -12,24 +12,24 @@ SwingScope pipeline — 2026-09-01 08:50
   400 of 400 tickers returned usable history
   schema: 400 frames validated, no critical violations
   health: 4/4 checks passed
-  provenance: code 26ff3b018f22e55c · data 4beec06a0be1115b · git 622ad11
+  provenance: code 26ff3b018f22e55c · data 94932fafcfc1ffa8 · git a5f351b
 
 [3/10] Regime
-  RISK_OFF — Nifty -2.7% vs 200DMA, breadth 49%
+  RISK_OFF — Nifty -3.1% vs 200DMA, breadth 46%
   Tiers permitted: large
-  breadth healthy: 49% above 50DMA · 63% above 200DMA · A/D 0.43 · 15H/11L
+  breadth healthy: 46% above 50DMA · 60% above 200DMA · A/D 0.40 · 8H/14L
   macro: vol=normal rate=neutral favourable=True (confidence high)
 
 [4/10] Screener
   model: 12-1 momentum (20y: IC +0.031, Newey-West t = 2.74, 201 windows)
-  ranked 124 stocks by cross-sectional momentum
-  selectivity: 10 of 124 = top 8.1%
+  ranked 121 stocks by cross-sectional momentum
+  selectivity: 10 of 121 = top 8.3%
   small caps excluded — 0.96% round-trip cost (0.26% charges + 0.70% slippage)
 
 [5/10] Bucket
   sector data for 40 of 40 candidates
   bucket: 3 of 3 target — mix {'large': 3}
-  · Regime risk off: excluded 18 candidates in disallowed tiers (permitted: large).
+  · Regime risk off: excluded 21 candidates in disallowed tiers (permitted: large).
   · Bucket capped at 3 by the risk off regime (requested 10).
   · Sector cap reached: Technology (max 2 each).
 
@@ -40,12 +40,12 @@ SwingScope pipeline — 2026-09-01 08:50
   skipped
 
 [5b] Crash protection
-  realised vol 18.9% vs 12% target -> exposure 63%  [basket proxy (insufficient strategy history)]
-  DEFENSIVE: Realised volatility 19.0% is well above the 12% target — exposure cut to 63%. Elevated momentum vola
+  realised vol 18.7% vs 12% target -> exposure 64%  [basket proxy (insufficient strategy history)]
+  DEFENSIVE: Realised volatility 18.7% is well above the 12% target — exposure cut to 64%. Elevated momentum vola
   market crash-risk state: normal
 
 [6b] Daily tracker
-  +3 observations, +20 price rows
+  +3 observations, +10 price rows
   tracking 10 tickers
   workbook: reports/daily_tracker.xlsx
 
@@ -63,16 +63,16 @@ SwingScope pipeline — 2026-09-01 08:50
   forward: 3 picks, mean +5.93%, IC None
 
 [9/10] Report
-  wrote html: reports/report_20260901.html
+  wrote html: reports/report_20260902.html
 
 [9b] Dashboard
-  daily: reports/dashboard_20260901.html (28,093 chars)
-  cumulative: reports/dashboard_cumulative_20260901.html (363,721 chars)
+  daily: reports/dashboard_20260902.html (28,096 chars)
+  cumulative: reports/dashboard_cumulative_20260902.html (386,158 chars)
 
 [10/10] Notify
-  attaching daily dashboard: dashboard_20260901.html
-  attaching 30-day dashboard: dashboard_cumulative_20260901.html
-  attaching workbook: daily_tracker.xlsx (36 KB)
+  attaching daily dashboard: dashboard_20260902.html
+  attaching 30-day dashboard: dashboard_cumulative_20260902.html
+  attaching workbook: daily_tracker.xlsx (37 KB)
   {'telegram': True}
 
 ------------------------------------------------------------------

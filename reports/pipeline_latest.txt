@@ -1,37 +1,36 @@
 ==================================================================
-SwingScope pipeline — 2026-09-03 08:13
+SwingScope pipeline — 2026-09-04 08:09
 ==================================================================
 
 [1/10] Universe
-  Nifty 500: 500 constituents (live)
+  Nifty 500: 499 constituents (live)
 
 [2/10] Price data
   fetch period: 2y
-  fetched 500 of 500 candidates
+  fetched 499 of 499 candidates
   universe: 400 tickers — top 400 by 20-day traded value
   400 of 400 tickers returned usable history
   schema: 400 frames validated, no critical violations
   health: 4/4 checks passed
-  provenance: code 26ff3b018f22e55c · data 3a13c3c202022124 · git 4d1e6d2
+  provenance: code 26ff3b018f22e55c · data 61913b77165873ea · git a2bf02d
 
 [3/10] Regime
-  RISK_OFF — Nifty -2.9% vs 200DMA, breadth 50%
+  RISK_OFF — Nifty -2.7% vs 200DMA, breadth 50%
   Tiers permitted: large
-  breadth healthy: 50% above 50DMA · 62% above 200DMA · A/D 1.14 · 11H/7L
-  macro: vol=normal rate=neutral favourable=True (confidence high)
+  breadth healthy: 50% above 50DMA · 62% above 200DMA · A/D 1.16 · 15H/3L
+  macro: vol=calm rate=neutral favourable=True (confidence high)
 
 [4/10] Screener
   model: 12-1 momentum (20y: IC +0.031, Newey-West t = 2.74, 201 windows)
-  ranked 132 stocks by cross-sectional momentum
-  selectivity: 10 of 132 = top 7.6%
+  ranked 128 stocks by cross-sectional momentum
+  selectivity: 10 of 128 = top 7.8%
   small caps excluded — 0.96% round-trip cost (0.26% charges + 0.70% slippage)
 
 [5/10] Bucket
   sector data for 40 of 40 candidates
   bucket: 3 of 3 target — mix {'large': 3}
-  · Regime risk off: excluded 26 candidates in disallowed tiers (permitted: large).
+  · Regime risk off: excluded 27 candidates in disallowed tiers (permitted: large).
   · Bucket capped at 3 by the risk off regime (requested 10).
-  · Sector cap reached: Technology (max 2 each).
 
   exit-liquidity check (F&O list: 216 symbols, NSE live)
     all picks pass — stops are reachable
@@ -46,16 +45,14 @@ SwingScope pipeline — 2026-09-03 08:13
 
 [6b] Daily tracker
   +3 observations, +20 price rows
-  tracking 11 tickers
+  tracking 12 tickers
   workbook: reports/daily_tracker.xlsx
 
 [6c] Earnings window
-  3 checked: 0 clear, 0 report inside the window, 3 unknown
-    VERIFY  HFCL: no date retrievable
+  3 checked: 1 clear, 0 report inside the window, 2 unknown
     VERIFY  WELCORP: no date retrievable
-    VERIFY  NETWEB: no date retrievable
-  · 3 pick(s) have no retrievable date. yfinance coverage of Indian earnings is incomplete — verify on n
-  · No picks are clear of earnings. During results season that is normal, and the honest response is usu
+    VERIFY  APARINDS: no date retrievable
+  · 2 pick(s) have no retrievable date. yfinance coverage of Indian earnings is incomplete — verify on n
 
 [7/10] Forward log
   nothing to record
@@ -65,16 +62,16 @@ SwingScope pipeline — 2026-09-03 08:13
   forward: 3 picks, mean +5.93%, IC None
 
 [9/10] Report
-  wrote html: reports/report_20260903.html
+  wrote html: reports/report_20260904.html
 
 [9b] Dashboard
-  daily: reports/dashboard_20260903.html (28,088 chars)
-  cumulative: reports/dashboard_cumulative_20260903.html (408,584 chars)
+  daily: reports/dashboard_20260904.html (28,169 chars)
+  cumulative: reports/dashboard_cumulative_20260904.html (402,248 chars)
 
 [10/10] Notify
-  attaching daily dashboard: dashboard_20260903.html
-  attaching 30-day dashboard: dashboard_cumulative_20260903.html
-  attaching workbook: daily_tracker.xlsx (39 KB)
+  attaching daily dashboard: dashboard_20260904.html
+  attaching 30-day dashboard: dashboard_cumulative_20260904.html
+  attaching workbook: daily_tracker.xlsx (40 KB)
   {'telegram': True}
 
 ------------------------------------------------------------------

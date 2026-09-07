@@ -17,3 +17,6 @@ snapshot_date,ticker,tier,score,rank,regime,price_at_pick,horizon_days,target_ev
 2026-08-31,HFCL,large,100,1,risk_off,248.4,30,2026-10-13,,,,,open,,,
 2026-08-31,LAURUSLABS,large,99,2,risk_off,1862.8,30,2026-10-13,,,,,open,,,
 2026-08-31,NETWEB,large,98,3,risk_off,5178.3,30,2026-10-13,,,,,open,,,
+2026-09-07,WELCORP,large,99,1,risk_off,2612.0,30,2026-10-20,,,,,open,,,
+2026-09-07,LAURUSLABS,large,98,2,risk_off,1866.1,30,2026-10-20,,,,,open,,,
+2026-09-07,APARINDS,large,98,3,risk_off,17523.0,30,2026-10-20,,,,,open,,,

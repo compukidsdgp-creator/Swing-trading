@@ -1,52 +1,50 @@
 ==================================================================
-SwingScope pipeline — 2026-09-04 08:09
+SwingScope pipeline — 2026-09-07 08:31
 ==================================================================
 
 [1/10] Universe
-  Nifty 500: 499 constituents (live)
+  Nifty 500: 500 constituents (live)
 
 [2/10] Price data
   fetch period: 2y
-  fetched 499 of 499 candidates
+  fetched 499 of 500 candidates
   universe: 400 tickers — top 400 by 20-day traded value
   400 of 400 tickers returned usable history
   schema: 400 frames validated, no critical violations
   health: 4/4 checks passed
-  provenance: code 26ff3b018f22e55c · data 61913b77165873ea · git a2bf02d
+  provenance: code 26ff3b018f22e55c · data 7fe187aa4604936d · git aaf025b
 
 [3/10] Regime
-  RISK_OFF — Nifty -2.7% vs 200DMA, breadth 50%
+  RISK_OFF — Nifty -3.4% vs 200DMA, breadth 45%
   Tiers permitted: large
-  breadth healthy: 50% above 50DMA · 62% above 200DMA · A/D 1.16 · 15H/3L
+  breadth healthy: 45% above 50DMA · 61% above 200DMA · A/D 0.49 · 15H/5L
+    · Long-term participation (61%) exceeds short-term (45%) — a pullback inside an intact uptrend.
   macro: vol=calm rate=neutral favourable=True (confidence high)
 
 [4/10] Screener
   model: 12-1 momentum (20y: IC +0.031, Newey-West t = 2.74, 201 windows)
-  ranked 128 stocks by cross-sectional momentum
-  selectivity: 10 of 128 = top 7.8%
+  ranked 125 stocks by cross-sectional momentum
+  selectivity: 10 of 125 = top 8.0%
   small caps excluded — 0.96% round-trip cost (0.26% charges + 0.70% slippage)
 
 [5/10] Bucket
   sector data for 40 of 40 candidates
   bucket: 3 of 3 target — mix {'large': 3}
-  · Regime risk off: excluded 27 candidates in disallowed tiers (permitted: large).
+  · Regime risk off: excluded 28 candidates in disallowed tiers (permitted: large).
   · Bucket capped at 3 by the risk off regime (requested 10).
 
   exit-liquidity check (F&O list: 216 symbols, NSE live)
     all picks pass — stops are reachable
 
 [6/10] News sentiment
-  skipped
+  WELCORP        Mixed            +0.14 (8 items)  <-- EARNINGS in feed, check the date
+  LAURUSLABS     Mixed            +0.04 (8 items)  <-- EARNINGS in feed, check the date
+  APARINDS       Leaning bullish  +0.62 (8 items)  <-- EARNINGS in feed, check the date
 
 [5b] Crash protection
-  realised vol 18.5% vs 12% target -> exposure 65%  [basket proxy (insufficient strategy history)]
-  DEFENSIVE: Realised volatility 18.5% is well above the 12% target — exposure cut to 65%. Elevated momentum vola
+  realised vol 18.2% vs 12% target -> exposure 66%  [basket proxy (insufficient strategy history)]
+  DEFENSIVE: Realised volatility 18.2% is well above the 12% target — exposure cut to 66%. Elevated momentum vola
   market crash-risk state: normal
-
-[6b] Daily tracker
-  +3 observations, +20 price rows
-  tracking 12 tickers
-  workbook: reports/daily_tracker.xlsx
 
 [6c] Earnings window
   3 checked: 1 clear, 0 report inside the window, 2 unknown
@@ -55,23 +53,23 @@ SwingScope pipeline — 2026-09-04 08:09
   · 2 pick(s) have no retrievable date. yfinance coverage of Indian earnings is incomplete — verify on n
 
 [7/10] Forward log
-  nothing to record
+  recorded 3 picks (log now 21 rows)
 
 [8/10] Evaluate matured picks
-  evaluated 0 (of 7 open)
+  evaluated 0 (of 9 open)
   forward: 3 picks, mean +5.93%, IC None
+  vs backtest IC 0.0311: Need both a forward log and a validation run to compare.
 
 [9/10] Report
-  wrote html: reports/report_20260904.html
+  wrote html: reports/report_20260907.html
 
 [9b] Dashboard
-  daily: reports/dashboard_20260904.html (28,169 chars)
-  cumulative: reports/dashboard_cumulative_20260904.html (402,248 chars)
+  daily: reports/dashboard_20260907.html (28,171 chars)
+  cumulative: reports/dashboard_cumulative_20260904.html (425,851 chars)
 
 [10/10] Notify
-  attaching daily dashboard: dashboard_20260904.html
+  attaching daily dashboard: dashboard_20260907.html
   attaching 30-day dashboard: dashboard_cumulative_20260904.html
-  attaching workbook: daily_tracker.xlsx (40 KB)
   {'telegram': True}
 
 ------------------------------------------------------------------

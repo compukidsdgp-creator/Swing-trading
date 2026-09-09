@@ -14,7 +14,7 @@ on:
 # Prevent overlapping runs of this workflow. Several workflows commit to the
 # same branch, and concurrent pushes previously failed silently.
 concurrency:
-  group: swingscope-write
+  group: swingscope-research-write
   cancel-in-progress: false
 
 permissions:

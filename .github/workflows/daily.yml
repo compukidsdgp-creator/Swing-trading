@@ -8,7 +8,11 @@ name: SwingScope daily tracker
 # whose weekly non-overlapping windows are the actual statistical evidence.
 on:
   schedule:
-    - cron: '30 3 * * 2-5'   # Tue-Fri. Monday is covered by main.yml.
+    - cron: '30 18 * * 1-4'  # 00:00 IST Tue-Fri = 18:30 UTC Mon-Thu.
+                              # Day shifts back one because IST is
+                              # UTC+5:30 — midnight IST is still the
+                              # previous UTC day. Monday IST is covered
+                              # by main.yml (as Sunday UTC there too).
   workflow_dispatch:
 
 # Prevent overlapping runs of this workflow. Several workflows commit to the

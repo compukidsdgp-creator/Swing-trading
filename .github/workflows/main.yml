@@ -3,7 +3,11 @@ name: SwingScope pipeline
 on:
   workflow_dispatch:
   schedule:
-    - cron: '30 3 * * 1'
+    - cron: '30 18 * * 0'  # 00:00 IST Monday = 18:30 UTC SUNDAY.
+                            # IST is UTC+5:30, so midnight IST falls on
+                            # the PREVIOUS UTC calendar day — day 0 here
+                            # is correct, not a mistake. Verified against
+                            # Asia/Kolkata zone conversion, not by hand.
 
 # Prevent overlapping runs. Several workflows commit to the same branch, and
 # concurrent pushes previously failed silently, discarding the commit.

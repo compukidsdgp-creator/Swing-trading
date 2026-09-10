@@ -1,5 +1,5 @@
 ==================================================================
-SwingScope pipeline — 2026-09-10 08:19
+SwingScope pipeline — 2026-09-10 21:02
 ==================================================================
 
 [1/10] Universe
@@ -12,25 +12,24 @@ SwingScope pipeline — 2026-09-10 08:19
   400 of 400 tickers returned usable history
   schema: 400 frames validated, no critical violations
   health: 4/4 checks passed
-  provenance: code 26ff3b018f22e55c · data 866497c71f26941b · git 0550d0f
+  provenance: code 26ff3b018f22e55c · data 09f6610af228a63f · git 0b53b9c
 
 [3/10] Regime
-  RISK_OFF — Nifty -4.6% vs 200DMA, breadth 43%
+  RISK_OFF — Nifty -4.7% vs 200DMA, breadth 44%
   Tiers permitted: large
-  breadth narrowing: 43% above 50DMA · 59% above 200DMA · A/D 0.50 · 7H/14L
-    · Long-term participation (59%) exceeds short-term (43%) — a pullback inside an intact uptrend.
+  breadth narrowing: 44% above 50DMA · 59% above 200DMA · A/D 0.51 · 20H/16L
   macro: vol=normal rate=neutral favourable=True (confidence high)
 
 [4/10] Screener
   model: 12-1 momentum (20y: IC +0.031, Newey-West t = 2.74, 201 windows)
-  ranked 112 stocks by cross-sectional momentum
-  selectivity: 10 of 112 = top 8.9%
+  ranked 121 stocks by cross-sectional momentum
+  selectivity: 10 of 121 = top 8.3%
   small caps excluded — 0.96% round-trip cost (0.26% charges + 0.70% slippage)
 
 [5/10] Bucket
   sector data for 40 of 40 candidates
   bucket: 3 of 3 target — mix {'large': 3}
-  · Regime risk off: excluded 23 candidates in disallowed tiers (permitted: large).
+  · Regime risk off: excluded 25 candidates in disallowed tiers (permitted: large).
   · Bucket capped at 3 by the risk off regime (requested 10).
   · Sector cap reached: Basic Materials (max 2 each).
 
@@ -46,15 +45,17 @@ SwingScope pipeline — 2026-09-10 08:19
   market crash-risk state: normal
 
 [6b] Daily tracker
-  +3 observations, +11 price rows
+  +0 observations, +0 price rows
   tracking 12 tickers
   workbook: reports/daily_tracker.xlsx
 
 [6c] Earnings window
-  3 checked: 1 clear, 0 report inside the window, 2 unknown
+  3 checked: 0 clear, 0 report inside the window, 3 unknown
     VERIFY  HINDCOPPER: no date retrievable
     VERIFY  WELCORP: no date retrievable
-  · 2 pick(s) have no retrievable date. yfinance coverage of Indian earnings is incomplete — verify on n
+    VERIFY  CHENNPETRO: no date retrievable
+  · 3 pick(s) have no retrievable date. yfinance coverage of Indian earnings is incomplete — verify on n
+  · No picks are clear of earnings. During results season that is normal, and the honest response is usu
 
 [7/10] Forward log
   nothing to record
@@ -67,8 +68,8 @@ SwingScope pipeline — 2026-09-10 08:19
   wrote html: reports/report_20260910.html
 
 [9b] Dashboard
-  daily: reports/dashboard_20260910.html (28,123 chars)
-  cumulative: reports/dashboard_cumulative_20260910.html (398,043 chars)
+  daily: reports/dashboard_20260910.html (28,117 chars)
+  cumulative: reports/dashboard_cumulative_20260910.html (398,046 chars)
 
 [10/10] Notify
   attaching daily dashboard: dashboard_20260910.html

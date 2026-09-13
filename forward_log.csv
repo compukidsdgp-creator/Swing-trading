@@ -20,3 +20,6 @@ snapshot_date,ticker,tier,score,rank,regime,price_at_pick,horizon_days,target_ev
 2026-09-07,WELCORP,large,99,1,risk_off,2612.0,30,2026-10-20,,,,,open,,,
 2026-09-07,LAURUSLABS,large,98,2,risk_off,1866.1,30,2026-10-20,,,,,open,,,
 2026-09-07,APARINDS,large,98,3,risk_off,17523.0,30,2026-10-20,,,,,open,,,
+2026-09-13,APARINDS,large,99,1,risk_off,17500.0,30,2026-10-26,,,,,open,,,
+2026-09-13,WELCORP,large,98,2,risk_off,2676.6,30,2026-10-26,,,,,open,,,
+2026-09-13,LAURUSLABS,large,96,3,risk_off,1969.0,30,2026-10-26,,,,,open,,,

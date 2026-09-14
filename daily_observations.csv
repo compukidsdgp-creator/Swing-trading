@@ -80,3 +80,6 @@ obs_date,ticker,rank,tier,score,momentum_pct,regime,ref_close,stop_loss,stop_pct
 2026-09-10,HINDCOPPER,1,large,99,125.68,risk_off,530.1,491.93,-7.2,568.27,606.44,38.17,Basic Materials,True,model=momentum
 2026-09-10,WELCORP,2,large,97,114.58,risk_off,2761.9,2549.79,-7.68,2974.01,3186.12,212.11,Basic Materials,True,model=momentum
 2026-09-10,LAURUSLABS,3,large,96,107.93,risk_off,1944.7,1849.8,-4.88,2039.6,2134.5,94.9,Healthcare,True,model=momentum
+2026-09-14,APARINDS,1,large,99,126.43,risk_off,17500.0,16121.0,-7.88,18879.0,20258.0,1379.0,Industrials,True,model=momentum
+2026-09-14,WELCORP,2,large,98,113.98,risk_off,2676.6,2467.83,-7.8,2885.37,3094.14,208.77,Basic Materials,True,model=momentum
+2026-09-14,LAURUSLABS,3,large,96,105.41,risk_off,1969.0,1871.34,-4.96,2066.66,2164.32,97.66,Healthcare,True,model=momentum

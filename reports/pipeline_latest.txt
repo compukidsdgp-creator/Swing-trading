@@ -1,5 +1,5 @@
 ==================================================================
-SwingScope pipeline — 2026-09-16 21:30
+SwingScope pipeline — 2026-09-17 21:34
 ==================================================================
 
 [1/10] Universe
@@ -12,22 +12,20 @@ SwingScope pipeline — 2026-09-16 21:30
   400 of 400 tickers returned usable history
   schema: 400 frames validated, no critical violations
   health: 4/4 checks passed
-  provenance: code 26ff3b018f22e55c · data ccffd988140aaf17 · git 6df9622
+  provenance: code 26ff3b018f22e55c · data f433a28eb5ccd4ee · git 4f4eb73
 
 [3/10] Regime
-  RISK_OFF — Nifty -5.8% vs 200DMA, breadth 28%
+  RISK_OFF — Nifty -5.3% vs 200DMA, breadth 25%
   Tiers permitted: large
-  breadth weak: 28% above 50DMA · 51% above 200DMA · A/D 0.14 · 3H/17L
-    ! Only 28% of the universe is above its own 50 DMA. Momentum requires participation; it has little to 
-    · Long-term participation (51%) exceeds short-term (28%) — a pullback inside an intact uptrend.
+  breadth weak: 25% above 50DMA · 50% above 200DMA · A/D 0.97 · 2H/20L
+    ! Only 25% of the universe is above its own 50 DMA. Momentum requires participation; it has little to 
+    · Long-term participation (50%) exceeds short-term (25%) — a pullback inside an intact uptrend.
   macro: vol=normal rate=neutral favourable=True (confidence high)
 
 [4/10] Screener
   model: 12-1 momentum (20y: IC +0.031, Newey-West t = 2.74, 201 windows)
-  ranked 65 stocks by cross-sectional momentum
-  selectivity: 10 of 65 = top 15.4%
-    ! Taking the top 15% — the validated configuration was the top 5%. Filters have cut the universe before selection, so this is closer to the quintile config (0.56% spread) than the concentrated one (1.63%).
-    Fix: raise --max-tickers, or relax --min-score / the momentum floor so more names reach the ranking stage.
+  ranked 69 stocks by cross-sectional momentum
+  selectivity: 10 of 69 = top 14.5%
   small caps excluded — 0.96% round-trip cost (0.26% charges + 0.70% slippage)
 
 [5/10] Bucket
@@ -43,12 +41,12 @@ SwingScope pipeline — 2026-09-16 21:30
   skipped
 
 [5b] Crash protection
-  realised vol 17.8% vs 12% target -> exposure 68%  [basket proxy (insufficient strategy history)]
-  DEFENSIVE: Realised volatility 17.8% is well above the 12% target — exposure cut to 68%. Elevated momentum vola
+  realised vol 17.5% vs 12% target -> exposure 68%  [basket proxy (insufficient strategy history)]
+  DEFENSIVE: Realised volatility 17.5% is well above the 12% target — exposure cut to 68%. Elevated momentum vola
   market crash-risk state: normal
 
 [6b] Daily tracker
-  +3 observations, +22 price rows
+  +3 observations, +11 price rows
   tracking 12 tickers
   workbook: reports/daily_tracker.xlsx
 
@@ -66,16 +64,16 @@ SwingScope pipeline — 2026-09-16 21:30
   forward: 6 picks, mean +1.90%, IC None
 
 [9/10] Report
-  wrote html: reports/report_20260916.html
+  wrote html: reports/report_20260917.html
 
 [9b] Dashboard
-  daily: reports/dashboard_20260916.html (28,148 chars)
-  cumulative: reports/dashboard_cumulative_20260916.html (371,876 chars)
+  daily: reports/dashboard_20260917.html (28,144 chars)
+  cumulative: reports/dashboard_cumulative_20260917.html (393,501 chars)
 
 [10/10] Notify
-  attaching daily dashboard: dashboard_20260916.html
-  attaching 30-day dashboard: dashboard_cumulative_20260916.html
-  attaching workbook: daily_tracker.xlsx (47 KB)
+  attaching daily dashboard: dashboard_20260917.html
+  attaching 30-day dashboard: dashboard_cumulative_20260917.html
+  attaching workbook: daily_tracker.xlsx (48 KB)
   {'telegram': True}
 
 ------------------------------------------------------------------

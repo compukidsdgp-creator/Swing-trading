@@ -1,5 +1,5 @@
 ==================================================================
-SwingScope pipeline — 2026-09-17 21:34
+SwingScope pipeline — 2026-09-20 20:58
 ==================================================================
 
 [1/10] Universe
@@ -12,68 +12,67 @@ SwingScope pipeline — 2026-09-17 21:34
   400 of 400 tickers returned usable history
   schema: 400 frames validated, no critical violations
   health: 4/4 checks passed
-  provenance: code 26ff3b018f22e55c · data f433a28eb5ccd4ee · git 4f4eb73
+  provenance: code 26ff3b018f22e55c · data 43669bf7b6ef3a9d · git cdb2a60
 
 [3/10] Regime
-  RISK_OFF — Nifty -5.3% vs 200DMA, breadth 25%
+  RISK_OFF — Nifty -4.7% vs 200DMA, breadth 38%
   Tiers permitted: large
-  breadth weak: 25% above 50DMA · 50% above 200DMA · A/D 0.97 · 2H/20L
-    ! Only 25% of the universe is above its own 50 DMA. Momentum requires participation; it has little to 
-    · Long-term participation (50%) exceeds short-term (25%) — a pullback inside an intact uptrend.
+  breadth narrowing: 38% above 50DMA · 57% above 200DMA · A/D 3.16 · 18H/10L
+    · Long-term participation (57%) exceeds short-term (38%) — a pullback inside an intact uptrend.
   macro: vol=normal rate=neutral favourable=True (confidence high)
 
 [4/10] Screener
   model: 12-1 momentum (20y: IC +0.031, Newey-West t = 2.74, 201 windows)
-  ranked 69 stocks by cross-sectional momentum
-  selectivity: 10 of 69 = top 14.5%
+  ranked 90 stocks by cross-sectional momentum
+  selectivity: 10 of 90 = top 11.1%
   small caps excluded — 0.96% round-trip cost (0.26% charges + 0.70% slippage)
 
 [5/10] Bucket
   sector data for 40 of 40 candidates
   bucket: 3 of 3 target — mix {'large': 3}
-  · Regime risk off: excluded 18 candidates in disallowed tiers (permitted: large).
+  · Regime risk off: excluded 24 candidates in disallowed tiers (permitted: large).
   · Bucket capped at 3 by the risk off regime (requested 10).
 
   exit-liquidity check (F&O list: 216 symbols, NSE live)
     all picks pass — stops are reachable
 
 [6/10] News sentiment
-  skipped
+  WELCORP        Mixed            +0.68 (8 items)  <-- EARNINGS in feed, check the date
+  LAURUSLABS     Mixed            -0.15 (8 items)  <-- EARNINGS in feed, check the date
+  CHENNPETRO     Bullish          +1.07 (8 items)  <-- EARNINGS in feed, check the date
 
 [5b] Crash protection
-  realised vol 17.5% vs 12% target -> exposure 68%  [basket proxy (insufficient strategy history)]
-  DEFENSIVE: Realised volatility 17.5% is well above the 12% target — exposure cut to 68%. Elevated momentum vola
+  realised vol 17.1% vs 12% target -> exposure 70%  [basket proxy (insufficient strategy history)]
+  DEFENSIVE: Realised volatility 17.1% is well above the 12% target — exposure cut to 70%. Elevated momentum vola
   market crash-risk state: normal
 
-[6b] Daily tracker
-  +3 observations, +11 price rows
-  tracking 12 tickers
-  workbook: reports/daily_tracker.xlsx
-
 [6c] Earnings window
-  3 checked: 1 clear, 0 report inside the window, 2 unknown
+  3 checked: 0 clear, 1 report inside the window, 2 unknown
+    EXCLUDE LAURUSLABS: reports 2026-10-22 (32.0 days)
     VERIFY  WELCORP: no date retrievable
     VERIFY  CHENNPETRO: no date retrievable
+  · 1 pick(s) report inside the 30-day window. Holding through results converts a momentum trade into an
   · 2 pick(s) have no retrievable date. yfinance coverage of Indian earnings is incomplete — verify on n
+  · No picks are clear of earnings. During results season that is normal, and the honest response is usu
 
 [7/10] Forward log
-  nothing to record
+  recorded 2 picks (log now 26 rows)
 
 [8/10] Evaluate matured picks
-  evaluated 3 (of 9 open)
+  evaluated 3 (of 10 open)
   forward: 6 picks, mean +1.90%, IC None
+  vs backtest IC 0.0311: Need both a forward log and a validation run to compare.
 
 [9/10] Report
-  wrote html: reports/report_20260917.html
+  wrote html: reports/report_20260920.html
 
 [9b] Dashboard
-  daily: reports/dashboard_20260917.html (28,144 chars)
-  cumulative: reports/dashboard_cumulative_20260917.html (393,501 chars)
+  daily: reports/dashboard_20260920.html (22,460 chars)
+  cumulative: reports/dashboard_cumulative_20260917.html (416,836 chars)
 
 [10/10] Notify
-  attaching daily dashboard: dashboard_20260917.html
+  attaching daily dashboard: dashboard_20260920.html
   attaching 30-day dashboard: dashboard_cumulative_20260917.html
-  attaching workbook: daily_tracker.xlsx (48 KB)
   {'telegram': True}
 
 ------------------------------------------------------------------

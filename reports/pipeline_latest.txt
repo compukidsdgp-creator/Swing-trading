@@ -1,5 +1,5 @@
 ==================================================================
-SwingScope pipeline — 2026-09-20 20:58
+SwingScope pipeline — 2026-09-21 22:05
 ==================================================================
 
 [1/10] Universe
@@ -12,12 +12,12 @@ SwingScope pipeline — 2026-09-20 20:58
   400 of 400 tickers returned usable history
   schema: 400 frames validated, no critical violations
   health: 4/4 checks passed
-  provenance: code 26ff3b018f22e55c · data 43669bf7b6ef3a9d · git cdb2a60
+  provenance: code 26ff3b018f22e55c · data 5672ef1f2c356aa6 · git 6b68d25
 
 [3/10] Regime
   RISK_OFF — Nifty -4.7% vs 200DMA, breadth 38%
   Tiers permitted: large
-  breadth narrowing: 38% above 50DMA · 57% above 200DMA · A/D 3.16 · 18H/10L
+  breadth narrowing: 38% above 50DMA · 57% above 200DMA · A/D 2.91 · 18H/10L
     · Long-term participation (57%) exceeds short-term (38%) — a pullback inside an intact uptrend.
   macro: vol=normal rate=neutral favourable=True (confidence high)
 
@@ -37,42 +37,42 @@ SwingScope pipeline — 2026-09-20 20:58
     all picks pass — stops are reachable
 
 [6/10] News sentiment
-  WELCORP        Mixed            +0.68 (8 items)  <-- EARNINGS in feed, check the date
-  LAURUSLABS     Mixed            -0.15 (8 items)  <-- EARNINGS in feed, check the date
-  CHENNPETRO     Bullish          +1.07 (8 items)  <-- EARNINGS in feed, check the date
+  skipped
 
 [5b] Crash protection
-  realised vol 17.1% vs 12% target -> exposure 70%  [basket proxy (insufficient strategy history)]
-  DEFENSIVE: Realised volatility 17.1% is well above the 12% target — exposure cut to 70%. Elevated momentum vola
+  realised vol 17.0% vs 12% target -> exposure 71%  [basket proxy (insufficient strategy history)]
+  DEFENSIVE: Realised volatility 17.0% is well above the 12% target — exposure cut to 71%. Elevated momentum vola
   market crash-risk state: normal
 
+[6b] Daily tracker
+  +3 observations, +26 price rows
+  tracking 12 tickers
+  workbook: reports/daily_tracker.xlsx
+
 [6c] Earnings window
-  3 checked: 0 clear, 1 report inside the window, 2 unknown
-    EXCLUDE LAURUSLABS: reports 2026-10-22 (32.0 days)
+  3 checked: 1 clear, 0 report inside the window, 2 unknown
     VERIFY  WELCORP: no date retrievable
     VERIFY  CHENNPETRO: no date retrievable
-  · 1 pick(s) report inside the 30-day window. Holding through results converts a momentum trade into an
   · 2 pick(s) have no retrievable date. yfinance coverage of Indian earnings is incomplete — verify on n
-  · No picks are clear of earnings. During results season that is normal, and the honest response is usu
 
 [7/10] Forward log
-  recorded 2 picks (log now 26 rows)
+  nothing to record
 
 [8/10] Evaluate matured picks
-  evaluated 3 (of 10 open)
+  evaluated 0 (of 10 open)
   forward: 6 picks, mean +1.90%, IC None
-  vs backtest IC 0.0311: Need both a forward log and a validation run to compare.
 
 [9/10] Report
-  wrote html: reports/report_20260920.html
+  wrote html: reports/report_20260921.html
 
 [9b] Dashboard
-  daily: reports/dashboard_20260920.html (22,460 chars)
-  cumulative: reports/dashboard_cumulative_20260917.html (416,836 chars)
+  daily: reports/dashboard_20260921.html (28,145 chars)
+  cumulative: reports/dashboard_cumulative_20260921.html (330,846 chars)
 
 [10/10] Notify
-  attaching daily dashboard: dashboard_20260920.html
-  attaching 30-day dashboard: dashboard_cumulative_20260917.html
+  attaching daily dashboard: dashboard_20260921.html
+  attaching 30-day dashboard: dashboard_cumulative_20260921.html
+  attaching workbook: daily_tracker.xlsx (50 KB)
   {'telegram': True}
 
 ------------------------------------------------------------------

@@ -101,3 +101,6 @@ obs_date,ticker,rank,tier,score,momentum_pct,regime,ref_close,stop_loss,stop_pct
 2026-09-23,WELCORP,1,large,100,167.45,risk_off,2731.5,2476.92,-9.32,2986.08,3240.66,254.58,Basic Materials,True,model=momentum
 2026-09-23,MCX,2,large,98,102.94,risk_off,3262.6,3060.97,-6.18,3464.23,3665.86,201.63,Financial Services,True,model=momentum
 2026-09-23,CHENNPETRO,3,large,97,100.07,risk_off,1392.0,1254.19,-9.9,1529.81,1667.62,137.81,Energy,True,model=momentum
+2026-09-24,WELCORP,1,large,100,163.72,risk_off,2796.8,2545.65,-8.98,3047.95,3299.1,251.15,Basic Materials,True,model=momentum
+2026-09-24,LAURUSLABS,2,large,98,106.86,risk_off,2034.0,1938.81,-4.68,2129.19,2224.38,95.19,Healthcare,True,model=momentum
+2026-09-24,MCX,3,large,97,105.27,risk_off,3374.0,3167.51,-6.12,3580.49,3786.98,206.49,Financial Services,True,model=momentum

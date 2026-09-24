@@ -1,5 +1,5 @@
 ==================================================================
-SwingScope pipeline — 2026-09-23 21:38
+SwingScope pipeline — 2026-09-24 21:38
 ==================================================================
 
 [1/10] Universe
@@ -7,30 +7,30 @@ SwingScope pipeline — 2026-09-23 21:38
 
 [2/10] Price data
   fetch period: 2y
-  fetched 498 of 500 candidates
+  fetched 497 of 500 candidates
   universe: 400 tickers — top 400 by 20-day traded value
   400 of 400 tickers returned usable history
   schema: 400 frames validated, no critical violations
   health: 4/4 checks passed
-  provenance: code 26ff3b018f22e55c · data 8973d314f75072b7 · git 0fb6e8f
+  provenance: code 26ff3b018f22e55c · data 39740affd32b4675 · git b94c80d
 
 [3/10] Regime
-  RISK_OFF — Nifty -4.3% vs 200DMA, breadth 37%
+  RISK_OFF — Nifty -4.2% vs 200DMA, breadth 43%
   Tiers permitted: large
-  breadth narrowing: 37% above 50DMA · 56% above 200DMA · A/D 0.63 · 13H/7L
-    · Long-term participation (56%) exceeds short-term (37%) — a pullback inside an intact uptrend.
+  breadth narrowing: 43% above 50DMA · 59% above 200DMA · A/D 2.22 · 11H/5L
+    · Long-term participation (59%) exceeds short-term (43%) — a pullback inside an intact uptrend.
   macro: vol=calm rate=neutral favourable=True (confidence high)
 
 [4/10] Screener
   model: 12-1 momentum (20y: IC +0.031, Newey-West t = 2.74, 201 windows)
-  ranked 91 stocks by cross-sectional momentum
-  selectivity: 10 of 91 = top 11.0%
+  ranked 106 stocks by cross-sectional momentum
+  selectivity: 10 of 106 = top 9.4%
   small caps excluded — 0.96% round-trip cost (0.26% charges + 0.70% slippage)
 
 [5/10] Bucket
   sector data for 40 of 40 candidates
   bucket: 3 of 3 target — mix {'large': 3}
-  · Regime risk off: excluded 21 candidates in disallowed tiers (permitted: large).
+  · Regime risk off: excluded 25 candidates in disallowed tiers (permitted: large).
   · Bucket capped at 3 by the risk off regime (requested 10).
 
   exit-liquidity check (F&O list: 216 symbols, NSE live)
@@ -40,7 +40,7 @@ SwingScope pipeline — 2026-09-23 21:38
   skipped
 
 [5b] Crash protection
-  realised vol 15.7% vs 12% target -> exposure 76%  [basket proxy (insufficient strategy history)]
+  realised vol 15.4% vs 12% target -> exposure 78%  [basket proxy (insufficient strategy history)]
   market crash-risk state: normal
 
 [6b] Daily tracker
@@ -49,10 +49,9 @@ SwingScope pipeline — 2026-09-23 21:38
   workbook: reports/daily_tracker.xlsx
 
 [6c] Earnings window
-  3 checked: 1 clear, 0 report inside the window, 2 unknown
+  3 checked: 2 clear, 0 report inside the window, 1 unknown
     VERIFY  WELCORP: no date retrievable
-    VERIFY  CHENNPETRO: no date retrievable
-  · 2 pick(s) have no retrievable date. yfinance coverage of Indian earnings is incomplete — verify on n
+  · 1 pick(s) have no retrievable date. yfinance coverage of Indian earnings is incomplete — verify on n
 
 [7/10] Forward log
   nothing to record
@@ -62,16 +61,16 @@ SwingScope pipeline — 2026-09-23 21:38
   forward: 9 picks, mean -0.52%, IC None
 
 [9/10] Report
-  wrote html: reports/report_20260923.html
+  wrote html: reports/report_20260924.html
 
 [9b] Dashboard
-  daily: reports/dashboard_20260923.html (28,147 chars)
-  cumulative: reports/dashboard_cumulative_20260923.html (373,695 chars)
+  daily: reports/dashboard_20260924.html (28,154 chars)
+  cumulative: reports/dashboard_cumulative_20260924.html (395,584 chars)
 
 [10/10] Notify
-  attaching daily dashboard: dashboard_20260923.html
-  attaching 30-day dashboard: dashboard_cumulative_20260923.html
-  attaching workbook: daily_tracker.xlsx (53 KB)
+  attaching daily dashboard: dashboard_20260924.html
+  attaching 30-day dashboard: dashboard_cumulative_20260924.html
+  attaching workbook: daily_tracker.xlsx (54 KB)
   {'telegram': True}
 
 ------------------------------------------------------------------

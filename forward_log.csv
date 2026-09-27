@@ -5,9 +5,9 @@ snapshot_date,ticker,tier,score,rank,regime,price_at_pick,horizon_days,target_ev
 2026-08-03,HFCL,large,100,1,risk_off,199.33,30,2026-09-15,222.01,11.38,,,evaluated,,43.0,at_target
 2026-08-03,NETWEB,large,99,2,risk_off,4598.3,30,2026-09-15,4614.0,0.34,,,evaluated,,43.0,at_target
 2026-08-03,ADANIENSOL,large,97,3,risk_off,1646.0,30,2026-09-15,1347.5,-18.13,,,evaluated,,43.0,at_target
-2026-08-10,HFCL,large,100,1,risk_off,212.0,30,2026-09-22,,,,,open,,,
-2026-08-10,ADANIENSOL,large,99,2,risk_off,1619.4,30,2026-09-22,,,,,open,,,
-2026-08-10,HINDCOPPER,large,98,3,risk_off,538.75,30,2026-09-22,,,,,open,,,
+2026-08-10,HFCL,large,100,1,risk_off,212.0,30,2026-09-22,221.06,4.27,,,evaluated,,43.0,at_target
+2026-08-10,ADANIENSOL,large,99,2,risk_off,1619.4,30,2026-09-22,1381.7,-14.68,,,evaluated,,43.0,at_target
+2026-08-10,HINDCOPPER,large,98,3,risk_off,538.75,30,2026-09-22,508.2,-5.67,,,evaluated,,43.0,at_target
 2026-08-17,HFCL,large,100,1,risk_off,224.22,30,2026-09-29,,,,,open,,,
 2026-08-17,IDEA,large,99,2,risk_off,14.01,30,2026-09-29,,,,,open,,,
 2026-08-17,ADANIENSOL,large,99,3,risk_off,1619.8,30,2026-09-29,,,,,open,,,
@@ -25,3 +25,5 @@ snapshot_date,ticker,tier,score,rank,regime,price_at_pick,horizon_days,target_ev
 2026-09-13,LAURUSLABS,large,96,3,risk_off,1969.0,30,2026-10-26,,,,,open,,,
 2026-09-20,WELCORP,large,99,1,risk_off,2660.1,30,2026-11-02,,,,,open,,,
 2026-09-20,CHENNPETRO,large,96,2,risk_off,1416.6,30,2026-11-02,,,,,open,,,
+2026-09-27,WELCORP,large,100,1,risk_off,2832.4,30,2026-11-09,,,,,open,,,
+2026-09-27,MCX,large,95,2,risk_off,3324.9,30,2026-11-09,,,,,open,,,

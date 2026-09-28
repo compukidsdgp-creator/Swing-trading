@@ -1,5 +1,5 @@
 ==================================================================
-SwingScope pipeline — 2026-09-27 21:30
+SwingScope pipeline — 2026-09-28 23:25
 ==================================================================
 
 [1/10] Universe
@@ -12,7 +12,7 @@ SwingScope pipeline — 2026-09-27 21:30
   400 of 400 tickers returned usable history
   schema: 400 frames validated, no critical violations
   health: 4/4 checks passed
-  provenance: code 26ff3b018f22e55c · data 42f2a4aa43fe26ab · git 4a5e7a7
+  provenance: code 26ff3b018f22e55c · data 42f2a4aa43fe26ab · git 6d4bb27
 
 [3/10] Regime
   RISK_OFF — Nifty -5.2% vs 200DMA, breadth 32%
@@ -37,39 +37,40 @@ SwingScope pipeline — 2026-09-27 21:30
     all picks pass — stops are reachable
 
 [6/10] News sentiment
-  WELCORP        Bullish          +1.64 (8 items)
-  LAURUSLABS     Mixed            +0.23 (8 items)  <-- EARNINGS in feed, check the date
-  MCX            Mixed            +0.28 (8 items)  <-- EARNINGS in feed, check the date
+  skipped
 
 [5b] Crash protection
   realised vol 14.8% vs 12% target -> exposure 81%  [basket proxy (insufficient strategy history)]
   market crash-risk state: normal
 
+[6b] Daily tracker
+  +3 observations, +24 price rows
+  tracking 13 tickers
+  workbook: reports/daily_tracker.xlsx
+
 [6c] Earnings window
-  3 checked: 1 clear, 1 report inside the window, 1 unknown
-    EXCLUDE LAURUSLABS: reports 2026-10-22 (25.0 days)
+  3 checked: 2 clear, 0 report inside the window, 1 unknown
     VERIFY  WELCORP: no date retrievable
-  · 1 pick(s) report inside the 30-day window. Holding through results converts a momentum trade into an
   · 1 pick(s) have no retrievable date. yfinance coverage of Indian earnings is incomplete — verify on n
 
 [7/10] Forward log
-  recorded 2 picks (log now 28 rows)
+  nothing to record
 
 [8/10] Evaluate matured picks
-  evaluated 3 (of 11 open)
+  evaluated 0 (of 11 open)
   forward: 9 picks, mean -0.52%, IC None
-  vs backtest IC 0.0311: Need both a forward log and a validation run to compare.
 
 [9/10] Report
-  wrote html: reports/report_20260927.html
+  wrote html: reports/report_20260928.html
 
 [9b] Dashboard
-  daily: reports/dashboard_20260927.html (22,474 chars)
-  cumulative: reports/dashboard_cumulative_20260924.html (419,420 chars)
+  daily: reports/dashboard_20260928.html (28,159 chars)
+  cumulative: reports/dashboard_cumulative_20260928.html (333,751 chars)
 
 [10/10] Notify
-  attaching daily dashboard: dashboard_20260927.html
-  attaching 30-day dashboard: dashboard_cumulative_20260924.html
+  attaching daily dashboard: dashboard_20260928.html
+  attaching 30-day dashboard: dashboard_cumulative_20260928.html
+  attaching workbook: daily_tracker.xlsx (55 KB)
   {'telegram': True}
 
 ------------------------------------------------------------------

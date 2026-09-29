@@ -2,7 +2,7 @@
 
 *Single source of truth. Update this file whenever a number changes.*
 
-*Last updated: 23 August 2026*
+*Last updated: 29 September 2026*
 
 ---
 
@@ -20,8 +20,12 @@ CURRENT CONFIG
   Model: 12-1 momentum (momentum.py)
   Horizon: 30 days
   Universe: 400 stocks, Nifty 500, liquidity-trimmed
-  Bucket: 10 picks (top 2.5%)
-  Experiment started: 28 July 2026
+  Bucket: 10 picks target (capped at 3 — regime has been risk_off continuously)
+  Real evidence clock started: 3 Aug 2026 (excludes 27 Jul, a deliberate
+    horizon=15 test predating main.yml)
+  State as of 29 Sep: 6 evaluated, 19 open. Week-8 milestone reached on the
+    calendar but not on sample size -- see checkpoint under The decision point.
+    Extended, not decided. Re-check mid-October.
 
 BENCHMARK — use this one
   Forward IC benchmark: 0.0262
@@ -263,6 +267,43 @@ by construction because the signal was selected on the same data.
 
 **A result that decays to nothing is exactly what this apparatus exists to
 catch** — cheaply, on paper, rather than expensively with capital.
+
+### Week-8 checkpoint (29 Sep 2026) — extended, not decided
+
+Calendar week 8 arrived, but the sample did not. Risk-off has held every single
+week since 3 August without a break, capping every bucket at 3 names instead of
+10 — roughly 30% of the evaluated sample the 8-week milestone assumed.
+
+**State: 25 picks logged across 9 weekly buckets. 6 evaluated. 19 still open.**
+
+Evaluated picks: HFCL +11.38%, NETWEB +0.34%, ADANIENSOL −18.13% (3 Aug); HFCL
++4.27%, ADANIENSOL −14.68%, HINDCOPPER −5.67% (10 Aug). Mean −3.75%, median
+−2.67%, win rate 50% (3/6).
+
+**Per-window IC (+1.000, +0.500, mean +0.75) is a measurement artefact, not a
+finding.** With 3 names per cross-section, Spearman's rho can only take one of
+five values (−1, −0.5, 0, 0.5, 1) — it cannot land near 0.0262 at this n even if
+the true edge were exactly that. Do not compare this figure to the benchmark;
+the scales are incompatible at this sample size.
+
+**None of the four outcomes above can be honestly declared at n=6.** Declaring
+one now — in either direction — would be exactly the premature-conclusion
+mistake the pre-committed table exists to prevent.
+
+**Decision: extend, not decide.** The 17/24/31 August buckets mature through
+mid-October, taking the evaluated count to roughly 12–15. Re-run this check
+then. Continuing to hold this small a sample against the table would not be
+caution — it would be refusing to look, which is its own kind of bias.
+
+**Two infrastructure gaps found while checking this, not yet fixed:**
+`forward_log.csv` has `bench_return_pct` and `excess_return_pct` columns in its
+schema that are never populated — attribution was designed but never wired in.
+And stop-loss values for matured picks aren't retained anywhere joinable to
+their forward-log rows, so R-multiple expectancy cannot currently be computed
+for closed trades at all, only raw percentage return. Worth fixing before the
+October re-check if attribution and expectancy are wanted alongside IC next
+time — flagged here rather than fixed now, since this was a reporting session,
+not a build session.
 
 ---
 

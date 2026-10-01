@@ -1,0 +1,10 @@
+{
+  "n_measurements": 1,
+  "latest_ic": 0.0372,
+  "peak_ic": 0.0372,
+  "first_ic": 0.0372,
+  "decline_from_peak_pct": 0.0,
+  "change_since_first_pct": 0.0,
+  "status": "baseline",
+  "message": "1 measurement(s) recorded. At least three are needed before a trend means anything."
+}

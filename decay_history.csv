@@ -1,0 +1,2 @@
+measured_on,universe,horizon,period,n_stocks,windows,mean_ic,ic_t,pct_positive,permutation_p,model
+2026-10-01,Nifty 500,15,5y,100,54,0.0372,1.62,57.4,0.0067,momentum

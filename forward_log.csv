@@ -8,9 +8,9 @@ snapshot_date,ticker,tier,score,rank,regime,price_at_pick,horizon_days,target_ev
 2026-08-10,HFCL,large,100,1,risk_off,212.0,30,2026-09-22,221.06,4.27,,,evaluated,,43.0,at_target
 2026-08-10,ADANIENSOL,large,99,2,risk_off,1619.4,30,2026-09-22,1381.7,-14.68,,,evaluated,,43.0,at_target
 2026-08-10,HINDCOPPER,large,98,3,risk_off,538.75,30,2026-09-22,508.2,-5.67,,,evaluated,,43.0,at_target
-2026-08-17,HFCL,large,100,1,risk_off,224.22,30,2026-09-29,,,,,open,,,
-2026-08-17,IDEA,large,99,2,risk_off,14.01,30,2026-09-29,,,,,open,,,
-2026-08-17,ADANIENSOL,large,99,3,risk_off,1619.8,30,2026-09-29,,,,,open,,,
+2026-08-17,HFCL,large,100,1,risk_off,224.22,30,2026-09-29,216.21,-3.57,,,evaluated,,43.0,at_target
+2026-08-17,IDEA,large,99,2,risk_off,14.01,30,2026-09-29,13.56,-3.21,,,evaluated,,43.0,at_target
+2026-08-17,ADANIENSOL,large,99,3,risk_off,1619.8,30,2026-09-29,1305.8,-19.39,,,evaluated,,43.0,at_target
 2026-08-24,HFCL,large,100,1,risk_off,235.06,30,2026-10-06,,,,,open,,,
 2026-08-24,RRKABEL,large,99,2,risk_off,2952.9,30,2026-10-06,,,,,open,,,
 2026-08-24,HINDCOPPER,large,98,3,risk_off,568.55,30,2026-10-06,,,,,open,,,
@@ -27,3 +27,6 @@ snapshot_date,ticker,tier,score,rank,regime,price_at_pick,horizon_days,target_ev
 2026-09-20,CHENNPETRO,large,96,2,risk_off,1416.6,30,2026-11-02,,,,,open,,,
 2026-09-27,WELCORP,large,100,1,risk_off,2832.4,30,2026-11-09,,,,,open,,,
 2026-09-27,MCX,large,95,2,risk_off,3324.9,30,2026-11-09,,,,,open,,,
+2026-10-04,CUPID,large,100,1,risk_off,312.5,30,2026-11-16,,,,,open,,,
+2026-10-04,WELCORP,large,98,2,risk_off,2605.8,30,2026-11-16,,,,,open,,,
+2026-10-04,TDPOWERSYS,large,95,3,risk_off,792.15,30,2026-11-16,,,,,open,,,

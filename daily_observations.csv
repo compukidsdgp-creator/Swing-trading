@@ -119,3 +119,6 @@ obs_date,ticker,rank,tier,score,momentum_pct,regime,ref_close,stop_loss,stop_pct
 2026-10-06,CUPID,1,large,100,559.32,risk_off,310.1,283.49,-8.58,336.71,363.32,26.61,Consumer Defensive,True,model=momentum
 2026-10-06,WELCORP,2,large,98,200.78,risk_off,2497.5,2224.27,-10.94,2770.73,3043.96,273.23,Basic Materials,True,model=momentum
 2026-10-06,KIRLOSENG,3,large,95,135.71,risk_off,2242.7,2023.36,-9.78,2462.04,2681.38,219.34,Industrials,True,model=momentum
+2026-10-07,CUPID,1,large,100,545.62,risk_off,324.2,297.36,-8.28,351.04,377.88,26.84,Consumer Defensive,True,model=momentum
+2026-10-07,WELCORP,2,large,99,205.73,risk_off,2660.9,2382.04,-10.48,2939.76,3218.62,278.86,Basic Materials,True,model=momentum
+2026-10-07,KIRLOSENG,3,large,96,142.11,risk_off,2266.1,2068.5,-8.72,2463.7,2661.3,197.6,Industrials,True,model=momentum

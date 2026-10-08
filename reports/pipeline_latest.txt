@@ -1,5 +1,5 @@
 ==================================================================
-SwingScope pipeline — 2026-10-07 23:13
+SwingScope pipeline — 2026-10-08 23:29
 ==================================================================
 
 [1/10] Universe
@@ -12,26 +12,27 @@ SwingScope pipeline — 2026-10-07 23:13
   400 of 400 tickers returned usable history
   schema: 400 frames validated, no critical violations
   health: 4/4 checks passed
-  provenance: code 26ff3b018f22e55c · data 7252fef4f4fbf955 · git b7ae152
+  provenance: code 26ff3b018f22e55c · data 87e0b6e36ea4d497 · git cbb72bb
 
 [3/10] Regime
-  RISK_OFF — Nifty -6.4% vs 200DMA, breadth 28%
+  RISK_OFF — Nifty -7.0% vs 200DMA, breadth 21%
   Tiers permitted: large
-  breadth weak: 28% above 50DMA · 46% above 200DMA · A/D 2.72 · 5H/5L
-    ! Only 28% of the universe is above its own 50 DMA. Momentum requires participation; it has little to 
-    · Long-term participation (46%) exceeds short-term (28%) — a pullback inside an intact uptrend.
+  breadth weak: 21% above 50DMA · 42% above 200DMA · A/D 0.15 · 5H/41L
+    ! New lows exceed new highs by 9.0% of the universe. Leadership is narrowing.
+    ! Only 21% of the universe is above its own 50 DMA. Momentum requires participation; it has little to 
+    · Long-term participation (42%) exceeds short-term (21%) — a pullback inside an intact uptrend.
   macro: vol=normal rate=neutral favourable=True (confidence high)
 
 [4/10] Screener
   model: 12-1 momentum (20y: IC +0.031, Newey-West t = 2.74, 201 windows)
-  ranked 80 stocks by cross-sectional momentum
-  selectivity: 10 of 80 = top 12.5%
+  ranked 72 stocks by cross-sectional momentum
+  selectivity: 10 of 72 = top 13.9%
   small caps excluded — 0.96% round-trip cost (0.26% charges + 0.70% slippage)
 
 [5/10] Bucket
   sector data for 40 of 40 candidates
   bucket: 3 of 3 target — mix {'large': 3}
-  · Regime risk off: excluded 17 candidates in disallowed tiers (permitted: large).
+  · Regime risk off: excluded 15 candidates in disallowed tiers (permitted: large).
   · Bucket capped at 3 by the risk off regime (requested 10).
 
   exit-liquidity check (F&O list: 219 symbols, NSE live)
@@ -41,11 +42,11 @@ SwingScope pipeline — 2026-10-07 23:13
   skipped
 
 [5b] Crash protection
-  realised vol 13.5% vs 12% target -> exposure 89%  [basket proxy (insufficient strategy history)]
+  realised vol 15.2% vs 12% target -> exposure 79%  [basket proxy (insufficient strategy history)]
   market crash-risk state: normal
 
 [6b] Daily tracker
-  +3 observations, +17 price rows
+  +3 observations, +28 price rows
   tracking 16 tickers
   workbook: reports/daily_tracker.xlsx
 
@@ -53,7 +54,7 @@ SwingScope pipeline — 2026-10-07 23:13
   3 checked: 0 clear, 0 report inside the window, 3 unknown
     VERIFY  CUPID: no date retrievable
     VERIFY  WELCORP: no date retrievable
-    VERIFY  KIRLOSENG: no date retrievable
+    VERIFY  TDPOWERSYS: no date retrievable
   · 3 pick(s) have no retrievable date. yfinance coverage of Indian earnings is incomplete — verify on n
   · No picks are clear of earnings. During results season that is normal, and the honest response is usu
 
@@ -65,16 +66,16 @@ SwingScope pipeline — 2026-10-07 23:13
   forward: 15 picks, mean -2.61%, IC None
 
 [9/10] Report
-  wrote html: reports/report_20261007.html
+  wrote html: reports/report_20261008.html
 
 [9b] Dashboard
-  daily: reports/dashboard_20261007.html (28,125 chars)
-  cumulative: reports/dashboard_cumulative_20261007.html (364,606 chars)
+  daily: reports/dashboard_20261008.html (28,088 chars)
+  cumulative: reports/dashboard_cumulative_20261008.html (391,207 chars)
 
 [10/10] Notify
-  attaching daily dashboard: dashboard_20261007.html
-  attaching 30-day dashboard: dashboard_cumulative_20261007.html
-  attaching workbook: daily_tracker.xlsx (64 KB)
+  attaching daily dashboard: dashboard_20261008.html
+  attaching 30-day dashboard: dashboard_cumulative_20261008.html
+  attaching workbook: daily_tracker.xlsx (66 KB)
   {'telegram': True}
 
 ------------------------------------------------------------------

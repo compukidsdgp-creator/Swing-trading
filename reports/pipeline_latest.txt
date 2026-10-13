@@ -1,5 +1,5 @@
 ==================================================================
-SwingScope pipeline — 2026-10-11 22:16
+SwingScope pipeline — 2026-10-13 00:53
 ==================================================================
 
 [1/10] Universe
@@ -12,10 +12,10 @@ SwingScope pipeline — 2026-10-11 22:16
   400 of 400 tickers returned usable history
   schema: 400 frames validated, no critical violations
   health: 4/4 checks passed
-  provenance: code 26ff3b018f22e55c · data 2eb661267b0bcfc2 · git a0a2dcc
+  provenance: code 26ff3b018f22e55c · data 2eb661267b0bcfc2 · git 902bfb4
 
 [3/10] Regime
-  RISK_OFF — Nifty -7.2% vs 200DMA, breadth 22%
+  RISK_OFF — Nifty -7.8% vs 200DMA, breadth 22%
   Tiers permitted: large
   breadth weak: 22% above 50DMA · 44% above 200DMA · A/D 2.54 · 3H/22L
     ! Only 22% of the universe is above its own 50 DMA. Momentum requires participation; it has little to 
@@ -38,16 +38,19 @@ SwingScope pipeline — 2026-10-11 22:16
     all picks pass — stops are reachable
 
 [6/10] News sentiment
-  CUPID          Mixed            +0.55 (8 items)  <-- EARNINGS in feed, check the date
-  WELCORP        Bullish          +1.16 (8 items)  <-- EARNINGS in feed, check the date
-  TDPOWERSYS     Bullish          +0.91 (8 items)  <-- REGULATORY news
+  skipped
 
 [5b] Crash protection
   realised vol 14.2% vs 12% target -> exposure 85%  [basket proxy (insufficient strategy history)]
   market crash-risk state: normal
 
+[6b] Daily tracker
+  +3 observations, +17 price rows
+  tracking 16 tickers
+  workbook: reports/daily_tracker.xlsx
+
 [6c] Earnings window
-  results season until 2026-11-15 (35 days) — expect exclusions
+  results season until 2026-11-15 (33 days) — expect exclusions
   3 checked: 0 clear, 0 report inside the window, 3 unknown
     VERIFY  CUPID: no date retrievable
     VERIFY  WELCORP: no date retrievable
@@ -57,23 +60,23 @@ SwingScope pipeline — 2026-10-11 22:16
   · No picks are clear of earnings. During results season that is normal, and the honest response is usu
 
 [7/10] Forward log
-  recorded 3 picks (log now 34 rows)
+  nothing to record
 
 [8/10] Evaluate matured picks
-  evaluated 3 (of 11 open)
-  forward: 15 picks, mean -2.61%, IC None
-  vs backtest IC 0.0311: Need both a forward log and a validation run to compare.
+  evaluated 3 (of 9 open)
+  forward: 18 picks, mean -1.88%, IC None
 
 [9/10] Report
-  wrote html: reports/report_20261011.html
+  wrote html: reports/report_20261013.html
 
 [9b] Dashboard
-  daily: reports/dashboard_20261011.html (28,088 chars)
-  cumulative: reports/dashboard_cumulative_20261008.html (413,661 chars)
+  daily: reports/dashboard_20261013.html (28,088 chars)
+  cumulative: reports/dashboard_cumulative_20261013.html (342,231 chars)
 
 [10/10] Notify
-  attaching daily dashboard: dashboard_20261011.html
-  attaching 30-day dashboard: dashboard_cumulative_20261008.html
+  attaching daily dashboard: dashboard_20261013.html
+  attaching 30-day dashboard: dashboard_cumulative_20261013.html
+  attaching workbook: daily_tracker.xlsx (67 KB)
   {'telegram': True}
 
 ------------------------------------------------------------------

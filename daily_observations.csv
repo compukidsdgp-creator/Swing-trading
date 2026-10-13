@@ -125,3 +125,6 @@ obs_date,ticker,rank,tier,score,momentum_pct,regime,ref_close,stop_loss,stop_pct
 2026-10-08,CUPID,1,large,100,553.49,risk_off,356.65,326.91,-8.34,386.39,416.13,29.74,Consumer Defensive,True,model=momentum
 2026-10-08,WELCORP,2,large,99,204.02,risk_off,2651.3,2362.31,-10.9,2940.29,3229.28,288.99,Basic Materials,True,model=momentum
 2026-10-08,TDPOWERSYS,3,large,96,149.05,risk_off,793.5,712.4,-10.22,874.6,955.7,81.1,Industrials,True,model=momentum
+2026-10-13,CUPID,1,large,100,532.31,risk_off,366.1,333.22,-8.98,398.98,431.86,32.88,Consumer Defensive,True,model=momentum
+2026-10-13,WELCORP,2,large,99,204.92,risk_off,2640.4,2359.46,-10.64,2921.34,3202.28,280.94,Basic Materials,True,model=momentum
+2026-10-13,TDPOWERSYS,3,large,96,157.54,risk_off,793.75,712.79,-10.2,874.71,955.67,80.96,Industrials,True,model=momentum

@@ -1,18 +1,18 @@
 ==================================================================
-SwingScope pipeline — 2026-10-18 20:57
+SwingScope pipeline — 2026-10-19 22:31
 ==================================================================
 
 [1/10] Universe
-  Nifty 500: 495 constituents (live)
+  Nifty 500: 496 constituents (live)
 
 [2/10] Price data
   fetch period: 2y
-  fetched 494 of 495 candidates
+  fetched 495 of 496 candidates
   universe: 400 tickers — top 400 by 20-day traded value
   400 of 400 tickers returned usable history
   schema: 400 frames validated, no critical violations
   health: 4/4 checks passed
-  provenance: code 26ff3b018f22e55c · data 2e709577dc6568e2 · git 264100c
+  provenance: code 26ff3b018f22e55c · data ef0a40c93f007238 · git 9d20d10
 
 [3/10] Regime
   RISK_OFF — Nifty -4.3% vs 200DMA, breadth 26%
@@ -38,43 +38,46 @@ SwingScope pipeline — 2026-10-18 20:57
     all picks pass — stops are reachable
 
 [6/10] News sentiment
-  CUPID          Neutral          +0.17 (8 items)  <-- EARNINGS in feed, check the date
-  WELCORP        Bullish          +0.80 (8 items)  <-- EARNINGS in feed, check the date
-  LAURUSLABS     Bullish          +0.90 (8 items)  <-- EARNINGS in feed, check the date
+  skipped
 
 [5b] Crash protection
   realised vol 13.7% vs 12% target -> exposure 88%  [basket proxy (insufficient strategy history)]
   market crash-risk state: normal
 
+[6b] Daily tracker
+  +3 observations, +30 price rows
+  tracking 16 tickers
+  workbook: reports/daily_tracker.xlsx
+
 [6c] Earnings window
-  results season until 2026-11-15 (28 days) — expect exclusions
+  results season until 2026-11-15 (27 days) — expect exclusions
   3 checked: 0 clear, 1 report inside the window, 2 unknown
-    EXCLUDE LAURUSLABS: reports 2026-10-29 (11.0 days)
+    EXCLUDE LAURUSLABS: reports 2026-10-29 (10.0 days)
     VERIFY  CUPID: no date retrievable
     VERIFY  WELCORP: no date retrievable
   · Today falls inside a typical Indian results season (mid-Jan, mid-Apr, mid-Jul, mid-Oct). Expect more
-  · 1 pick(s) report inside the 30-day window. Holding through results converts a momentum trade into an
+  · 1 pick(s) report inside the 15-day window. Holding through results converts a momentum trade into an
   · 2 pick(s) have no retrievable date. yfinance coverage of Indian earnings is incomplete — verify on n
   · No picks are clear of earnings. During results season that is normal, and the honest response is usu
 
 [7/10] Forward log
-  recorded 2 picks (log now 36 rows)
+  nothing to record
 
 [8/10] Evaluate matured picks
-  evaluated 3 (of 9 open)
+  evaluated 0 (of 7 open)
   forward: 18 picks, mean -1.42%, IC None
-  vs backtest IC 0.0311: Need both a forward log and a validation run to compare.
 
 [9/10] Report
-  wrote html: reports/report_20261018.html
+  wrote html: reports/report_20261019.html
 
 [9b] Dashboard
-  daily: reports/dashboard_20261018.html (22,439 chars)
-  cumulative: reports/dashboard_cumulative_20261015.html (387,059 chars)
+  daily: reports/dashboard_20261019.html (22,439 chars)
+  cumulative: reports/dashboard_cumulative_20261019.html (321,244 chars)
 
 [10/10] Notify
-  attaching daily dashboard: dashboard_20261018.html
-  attaching 30-day dashboard: dashboard_cumulative_20261015.html
+  attaching daily dashboard: dashboard_20261019.html
+  attaching 30-day dashboard: dashboard_cumulative_20261019.html
+  attaching workbook: daily_tracker.xlsx (72 KB)
   {'telegram': True}
 
 ------------------------------------------------------------------

@@ -323,3 +323,14 @@ distributions overlap 87%. The edge is in average magnitude across many trades.
 ---
 
 *Research infrastructure. Not investment advice.*
+
+---
+
+## 20 Oct 2026 — mid-October forward checkpoint
+
+- **Matured (horizon 30, real clock):** 15 picks across 5 weekly cohorts (3 Aug–31 Aug); 7 Sep cohort matures 20 Oct (evaluates after close); 15 picks still open (to 30 Nov).
+- **Results:** mean −2.9%, median −3.2%, win rate 40%. Cohort means −2.1, −5.4, −8.7, −2.8, +4.5. ADANIENSOL lost 14–19% in all three cohorts it appeared in; HFCL appears in every cohort → only ~8 independent names.
+- **Forward IC: not computable** (3 names per cohort). Benchmark columns were empty, so excess return unknown at this point.
+- **Regime:** every pick made in risk_off.
+- **Verdict:** continue paper, do not size up. Not "stop": no benchmark-relative evidence yet. Benchmark stays 0.0262.
+- **Code changes this date:** forward_log.py now stores stop_price/target_1r/target_2r/r_multiple per pick; evaluate_open takes bench_history and fills bench/excess; backfill_benchmark() and backfill_stops() repair older rows (stops from daily_observations.csv, 31 of 36 rows match); analyse() reports mean_r_multiple. pipeline.py passes the benchmark frame and runs the backfills. Next checkpoint: after the 30 Nov cohort matures (≈ 20+ independent picks, then decide on the table).

@@ -672,11 +672,25 @@ def run(args) -> tuple[int, list[str], dict]:
         # holding period than the horizon that was validated.
         hist = {t.replace(".NS", ""): d for t, d in pdata.items()
                 if d is not None and len(d)}
-        log, filled = flog.evaluate_open(log, lookup, price_history=hist)
+        log, filled = flog.evaluate_open(log, lookup, price_history=hist,
+                                        bench_history=bench)
         LOG_PATH.write_bytes(flog.to_csv(log))
         say(f"  evaluated {filled} (of {len(open_t)} open)")
     else:
         say("  none open")
+
+    # One-off/idempotent fix-ups: benchmark for rows evaluated before it was
+    # wired in, and stop levels for rows logged before they were recorded.
+    try:
+        log, nb = flog.backfill_benchmark(log, bench)
+        obs_path = Path("daily_observations.csv")
+        obs = pd.read_csv(obs_path) if obs_path.exists() else None
+        log, ns = flog.backfill_stops(log, obs)
+        if nb or ns:
+            LOG_PATH.write_bytes(flog.to_csv(log))
+            say(f"  backfilled benchmark on {nb} rows, stops on {ns} rows")
+    except Exception as exc:                                   # noqa: BLE001
+        say(f"  backfill skipped ({type(exc).__name__}: {exc})")
 
     fs = flog.analyse(log)
     ctx["forward_summary"] = fs if "error" not in fs else None

@@ -39,7 +39,105 @@ COLUMNS = [
     "excess_return_pct", "status", "notes",
     # Added to make evaluation-timing drift visible rather than silent.
     "holding_days_actual", "eval_method",
+    # Added Oct 2026: risk levels frozen at pick time so R-multiples can be
+    # computed later without hindsight.
+    "stop_price", "target_1r", "target_2r", "r_multiple",
 ]
+
+
+def _num(v) -> float:
+    try:
+        f = float(v)
+        return round(f, 2) if np.isfinite(f) else np.nan
+    except (TypeError, ValueError):
+        return np.nan
+
+
+def _bench_close_on(bench: pd.DataFrame | None, day) -> float | None:
+    """Benchmark close on the first session on/after `day` (within 7 days)."""
+    if bench is None or len(bench) == 0 or "Close" not in bench.columns:
+        return None
+    idx = pd.DatetimeIndex(bench.index).normalize()
+    tgt = pd.Timestamp(day)
+    pos = np.flatnonzero(idx >= tgt)
+    if not len(pos) or (idx[pos[0]] - tgt).days > 7:
+        return None
+    v = float(bench["Close"].iloc[pos[0]])
+    return v if np.isfinite(v) and v > 0 else None
+
+
+def _fill_bench(out: pd.DataFrame, i, bench: pd.DataFrame | None,
+                picked, eval_date, ret: float) -> None:
+    b0 = _bench_close_on(bench, picked)
+    b1 = _bench_close_on(bench, eval_date)
+    if b0 and b1:
+        b_ret = (b1 / b0 - 1) * 100
+        out.at[i, "bench_return_pct"] = round(b_ret, 2)
+        out.at[i, "excess_return_pct"] = round(ret - b_ret, 2)
+
+
+def _r_multiple(p0: float, px: float, stop) -> float:
+    try:
+        risk = p0 - float(stop)
+    except (TypeError, ValueError):
+        return np.nan
+    return round((px - p0) / risk, 2) if np.isfinite(risk) and risk > 0 else np.nan
+
+
+def backfill_benchmark(log: pd.DataFrame, bench: pd.DataFrame | None) -> tuple[pd.DataFrame, int]:
+    """Fill bench/excess for already-evaluated rows that lack them."""
+    out = log.copy()
+    n = 0
+    for i, row in out.iterrows():
+        if row["status"] != "evaluated" or pd.notna(row.get("bench_return_pct")):
+            continue
+        try:
+            picked = dt.date.fromisoformat(str(row["snapshot_date"]))
+            ed = row["target_eval_date"] if row.get("eval_method") == "at_target" \
+                else picked + dt.timedelta(days=int(row["holding_days_actual"]))
+            ed = dt.date.fromisoformat(str(ed))
+            ret = float(row["fwd_return_pct"])
+        except (ValueError, TypeError):
+            continue
+        before = out.at[i, "bench_return_pct"]
+        _fill_bench(out, i, bench, picked, ed, ret)
+        n += int(pd.notna(out.at[i, "bench_return_pct"]) and pd.isna(before))
+    return out, n
+
+
+def backfill_stops(log: pd.DataFrame, obs: pd.DataFrame | None) -> tuple[pd.DataFrame, int]:
+    """Copy stop/targets from daily_observations.csv for rows lacking them.
+
+    Matches on (snapshot_date == obs_date, ticker). The levels were computed at
+    pick time, so this introduces no hindsight. Rows with no match stay blank.
+    """
+    if obs is None or obs.empty or "stop_loss" not in obs.columns:
+        return log, 0
+    out = log.copy()
+    for c in ("stop_price", "target_1r", "target_2r"):
+        if c not in out.columns:
+            out[c] = np.nan
+        out[c] = pd.to_numeric(out[c], errors="coerce").astype("float64")
+    o = obs.dropna(subset=["stop_loss"]).copy()
+    o["d"] = pd.to_datetime(o["obs_date"], errors="coerce")
+    n = 0
+    for i, row in out.iterrows():
+        if pd.notna(row["stop_price"]):
+            continue
+        d0 = pd.to_datetime(row["snapshot_date"], errors="coerce")
+        if pd.isna(d0):
+            continue
+        # Same ticker, first observation within 3 days of the snapshot
+        m = o[(o["ticker"] == row["ticker"]) & (o["d"] >= d0)
+              & (o["d"] <= d0 + pd.Timedelta(days=3))].sort_values("d")
+        if m.empty:
+            continue
+        r = m.iloc[0]
+        out.at[i, "stop_price"] = _num(r["stop_loss"])
+        out.at[i, "target_1r"] = _num(r["target_1r"])
+        out.at[i, "target_2r"] = _num(r["target_2r"])
+        n += 1
+    return out, n
 
 
 def empty_log() -> pd.DataFrame:
@@ -87,6 +185,10 @@ def record_snapshot(
             "excess_return_pct": np.nan,
             "status": "open",
             "notes": "",
+            "stop_price": _num(r.get("Stop")),
+            "target_1r": _num(r.get("Target_1R")),
+            "target_2r": _num(r.get("Target_2R")),
+            "r_multiple": np.nan,
         })
 
     return pd.concat([log, pd.DataFrame(rows)], ignore_index=True)
@@ -97,6 +199,7 @@ def evaluate_open(
     price_lookup: dict[str, float],
     bench_lookup: dict[str, float] | None = None,
     price_history: dict[str, pd.DataFrame] | None = None,
+    bench_history: pd.DataFrame | None = None,
 ) -> tuple[pd.DataFrame, int]:
     """Fill in outcomes for entries whose evaluation date has passed.
 
@@ -135,6 +238,12 @@ def evaluate_open(
         out["eval_method"] = pd.Series([None] * len(out), dtype=object, index=out.index)
     else:
         out["eval_method"] = out["eval_method"].astype(object)
+
+    for c in ("bench_return_pct", "excess_return_pct", "stop_price",
+              "target_1r", "target_2r", "r_multiple"):
+        if c not in out.columns:
+            out[c] = np.nan
+        out[c] = pd.to_numeric(out[c], errors="coerce").astype("float64")
 
     today = dt.date.today()
     filled = 0
@@ -197,7 +306,10 @@ def evaluate_open(
         out.at[i, "eval_method"] = method
         out.at[i, "holding_days_actual"] = (eval_date - picked).days if eval_date else np.nan
 
-        if bench_lookup:
+        out.at[i, "r_multiple"] = _r_multiple(p0, px, row.get("stop_price"))
+        if bench_history is not None and eval_date is not None:
+            _fill_bench(out, i, bench_history, picked, eval_date, ret)
+        elif bench_lookup:
             b_now = bench_lookup.get("now")
             b_then = bench_lookup.get(f"then_{row['snapshot_date']}")
             if b_now and b_then and b_then > 0:
@@ -265,6 +377,9 @@ def analyse(log: pd.DataFrame) -> dict:
         "forward_ic_t": round(float(t_stat), 2) if np.isfinite(t_stat) else None,
         "ic_windows": len(ics),
         "open_picks": int((log["status"] == "open").sum()),
+        "mean_r_multiple": (round(float(r.mean()), 2) if len(r := pd.to_numeric(
+            ev.get("r_multiple"), errors="coerce").dropna()) else None),
+        "r_samples": int(pd.to_numeric(ev.get("r_multiple"), errors="coerce").notna().sum()),
     }
 
 

@@ -334,3 +334,12 @@ distributions overlap 87%. The edge is in average magnitude across many trades.
 - **Regime:** every pick made in risk_off.
 - **Verdict:** continue paper, do not size up. Not "stop": no benchmark-relative evidence yet. Benchmark stays 0.0262.
 - **Code changes this date:** forward_log.py now stores stop_price/target_1r/target_2r/r_multiple per pick; evaluate_open takes bench_history and fills bench/excess; backfill_benchmark() and backfill_stops() repair older rows (stops from daily_observations.csv, 31 of 36 rows match); analyse() reports mean_r_multiple. pipeline.py passes the benchmark frame and runs the backfills. Next checkpoint: after the 30 Nov cohort matures (≈ 20+ independent picks, then decide on the table).
+
+### 20 Oct 2026 — update after first run with benchmark/stop backfill (log: 38 rows)
+
+- **Pipeline live with new code:** midnight-IST run (02:00 IST) delivered Telegram before 9 AM; log line "backfilled benchmark on 18 rows, stops on 31 rows" confirmed.
+- **18 matured 30-day picks (3 Aug–7 Sep cohorts):** mean −2.4%, median −2.8%, win rate 39%. 7 Sep cohort evaluated at 19 Oct close (`latest_price`, 1 day early): WELCORP −1.6, LAURUSLABS +10.4, APARINDS −8.5; its benchmark fills on the next run.
+- **vs Nifty (15 picks with benchmark):** pick return −2.9% vs Nifty −6.0% → **excess +3.1%** (median +3.3), 67% beat Nifty. Cohort excess +4.5/−0.3/−2.3/+3.2/+10.2, t≈1.4 over 5 cohorts → suggestive, not proven. HFCL avg +11.8 pts (5 appearances); ADANIENSOL −11.3 (3); ex-ADANIENSOL ticker-level excess +5.4.
+- **R-multiples (16 picks with stops):** hold-to-horizon −0.22R; with stops honoured (close-only, no gaps) ≈ +0.4R, driven by one 6.9R outlier (LAURUSLABS 7 Sep); ex-outlier ≈ 0. 5 picks closed below stop at evaluation.
+- **Caveats:** repeat names mean far fewer independent bets than rows; all picks made in risk_off; forward IC still not computable (3 names/cohort); 27 Jul 15-day test rows still in file — exclude from all stats (the pipeline's "mean −1.20%, 21 picks" includes them).
+- **Verdict unchanged:** continue paper, do not size up. Next checkpoint: after 30 Nov cohort matures (~25+ independent picks). LAURUSLABS reports 29 Oct (earnings risk on open picks).

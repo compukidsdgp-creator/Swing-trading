@@ -1,5 +1,5 @@
 ==================================================================
-SwingScope pipeline — 2026-10-20 21:46
+SwingScope pipeline — 2026-10-21 21:52
 ==================================================================
 
 [1/10] Universe
@@ -12,7 +12,7 @@ SwingScope pipeline — 2026-10-20 21:46
   400 of 400 tickers returned usable history
   schema: 400 frames validated, no critical violations
   health: 4/4 checks passed
-  provenance: code 26ff3b018f22e55c · data 0ce0da91ae796ee1 · git 2498b1f
+  provenance: code 26ff3b018f22e55c · data 0ce0da91ae796ee1 · git 8602bd3
 
 [3/10] Regime
   RISK_OFF — Nifty -5.3% vs 200DMA, breadth 22%
@@ -47,14 +47,14 @@ SwingScope pipeline — 2026-10-20 21:46
   market crash-risk state: normal
 
 [6b] Daily tracker
-  +3 observations, +15 price rows
+  +3 observations, +0 price rows
   tracking 16 tickers
   workbook: reports/daily_tracker.xlsx
 
 [6c] Earnings window
-  results season until 2026-11-15 (26 days) — expect exclusions
+  results season until 2026-11-15 (25 days) — expect exclusions
   3 checked: 0 clear, 1 report inside the window, 2 unknown
-    EXCLUDE LAURUSLABS: reports 2026-10-29 (9.0 days)
+    EXCLUDE LAURUSLABS: reports 2026-10-29 (8.0 days)
     VERIFY  CUPID: no date retrievable
     VERIFY  WELCORP: no date retrievable
   · Today falls inside a typical Indian results season (mid-Jan, mid-Apr, mid-Jul, mid-Oct). Expect more
@@ -70,16 +70,16 @@ SwingScope pipeline — 2026-10-20 21:46
   forward: 21 picks, mean -1.20%, IC None
 
 [9/10] Report
-  wrote html: reports/report_20261020.html
+  wrote html: reports/report_20261021.html
 
 [9b] Dashboard
-  daily: reports/dashboard_20261020.html (22,444 chars)
-  cumulative: reports/dashboard_cumulative_20261020.html (342,892 chars)
+  daily: reports/dashboard_20261021.html (22,444 chars)
+  cumulative: reports/dashboard_cumulative_20261021.html (360,592 chars)
 
 [10/10] Notify
-  attaching daily dashboard: dashboard_20261020.html
-  attaching 30-day dashboard: dashboard_cumulative_20261020.html
-  attaching workbook: daily_tracker.xlsx (73 KB)
+  attaching daily dashboard: dashboard_20261021.html
+  attaching 30-day dashboard: dashboard_cumulative_20261021.html
+  attaching workbook: daily_tracker.xlsx (74 KB)
   {'telegram': True}
 
 ------------------------------------------------------------------

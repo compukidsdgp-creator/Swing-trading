@@ -1,5 +1,5 @@
 ==================================================================
-SwingScope pipeline — 2026-10-22 21:49
+SwingScope pipeline — 2026-10-25 21:04
 ==================================================================
 
 [1/10] Universe
@@ -7,81 +7,78 @@ SwingScope pipeline — 2026-10-22 21:49
 
 [2/10] Price data
   fetch period: 2y
-  fetched 495 of 496 candidates
+  fetched 494 of 496 candidates
   universe: 400 tickers — top 400 by 20-day traded value
   400 of 400 tickers returned usable history
   schema: 400 frames validated, no critical violations
   health: 4/4 checks passed
-  provenance: code 26ff3b018f22e55c · data 7130525e8ac595c4 · git 4b4caba
+  provenance: code 26ff3b018f22e55c · data 3fde8ad25e98370f · git f9e8a05
 
 [3/10] Regime
-  RISK_OFF — Nifty -5.6% vs 200DMA, breadth 16%
+  RISK_OFF — Nifty -6.3% vs 200DMA, breadth 12%
   Tiers permitted: large
-  breadth weak: 16% above 50DMA · 40% above 200DMA · A/D 0.21 · 2H/45L
-    ! New lows exceed new highs by 10.8% of the universe. Leadership is narrowing.
-    ! Only 16% of the universe is above its own 50 DMA. Momentum requires participation; it has little to 
-    · Long-term participation (40%) exceeds short-term (16%) — a pullback inside an intact uptrend.
+  breadth weak: 12% above 50DMA · 32% above 200DMA · A/D 0.09 · 4H/71L
+    ! New lows exceed new highs by 16.8% of the universe. Leadership is narrowing.
+    ! Only 12% of the universe is above its own 50 DMA. Momentum requires participation; it has little to 
+    · Long-term participation (32%) exceeds short-term (12%) — a pullback inside an intact uptrend.
   macro: vol=elevated rate=neutral favourable=True (confidence high)
 
 [4/10] Screener
   model: 12-1 momentum (20y: IC +0.031, Newey-West t = 2.74, 201 windows)
-  ranked 37 stocks by cross-sectional momentum
-  selectivity: 10 of 37 = top 27.0%
-    ! Taking the top 27% — the validated configuration was the top 5%. Filters have cut the universe before selection, so this is closer to the quintile config (0.56% spread) than the concentrated one (1.63%).
+  ranked 22 stocks by cross-sectional momentum
+  selectivity: 10 of 22 = top 45.5%
+    ! Taking the top 45% — the validated configuration was the top 5%. Filters have cut the universe before selection, so this is closer to the quintile config (0.56% spread) than the concentrated one (1.63%).
     Fix: raise --max-tickers, or relax --min-score / the momentum floor so more names reach the ranking stage.
   small caps excluded — 0.96% round-trip cost (0.26% charges + 0.70% slippage)
 
 [5/10] Bucket
-  sector data for 37 of 37 candidates
+  sector data for 22 of 22 candidates
   bucket: 3 of 3 target — mix {'large': 3}
-  · Regime risk off: excluded 8 candidates in disallowed tiers (permitted: large).
+  · Regime risk off: excluded 4 candidates in disallowed tiers (permitted: large).
   · Bucket capped at 3 by the risk off regime (requested 10).
 
   exit-liquidity check (F&O list: 219 symbols, NSE live)
     all picks pass — stops are reachable
 
 [6/10] News sentiment
-  skipped
+  CUPID          Bullish          +0.96 (8 items)  <-- EARNINGS in feed, check the date
+  LAURUSLABS     Mixed            +0.56 (8 items)  <-- EARNINGS in feed, check the date
+  CHENNPETRO     Bullish          +1.24 (8 items)  <-- EARNINGS in feed, check the date
 
 [5b] Crash protection
-  realised vol 13.9% vs 12% target -> exposure 86%  [basket proxy (insufficient strategy history)]
+  realised vol 14.2% vs 12% target -> exposure 84%  [basket proxy (insufficient strategy history)]
   market crash-risk state: normal
 
-[6b] Daily tracker
-  +3 observations, +15 price rows
-  tracking 16 tickers
-  workbook: reports/daily_tracker.xlsx
-
 [6c] Earnings window
-  results season until 2026-11-15 (24 days) — expect exclusions
+  results season until 2026-11-15 (21 days) — expect exclusions
   3 checked: 0 clear, 1 report inside the window, 2 unknown
-    EXCLUDE LAURUSLABS: reports 2026-10-29 (7.0 days)
+    EXCLUDE LAURUSLABS: reports 2026-10-29 (4.0 days)
     VERIFY  CUPID: no date retrievable
-    VERIFY  WELCORP: no date retrievable
+    VERIFY  CHENNPETRO: no date retrievable
   · Today falls inside a typical Indian results season (mid-Jan, mid-Apr, mid-Jul, mid-Oct). Expect more
-  · 1 pick(s) report inside the 15-day window. Holding through results converts a momentum trade into an
+  · 1 pick(s) report inside the 30-day window. Holding through results converts a momentum trade into an
   · 2 pick(s) have no retrievable date. yfinance coverage of Indian earnings is incomplete — verify on n
   · No picks are clear of earnings. During results season that is normal, and the honest response is usu
 
 [7/10] Forward log
-  nothing to record
+  recorded 2 picks (log now 40 rows)
 
 [8/10] Evaluate matured picks
   evaluated 0 (of 7 open)
   backfilled benchmark on 3 rows, stops on 0 rows
   forward: 21 picks, mean -1.20%, IC None
+  vs backtest IC 0.0311: Need both a forward log and a validation run to compare.
 
 [9/10] Report
-  wrote html: reports/report_20261022.html
+  wrote html: reports/report_20261025.html
 
 [9b] Dashboard
-  daily: reports/dashboard_20261022.html (22,443 chars)
-  cumulative: reports/dashboard_cumulative_20261022.html (359,485 chars)
+  daily: reports/dashboard_20261025.html (22,406 chars)
+  cumulative: reports/dashboard_cumulative_20261022.html (380,936 chars)
 
 [10/10] Notify
-  attaching daily dashboard: dashboard_20261022.html
+  attaching daily dashboard: dashboard_20261025.html
   attaching 30-day dashboard: dashboard_cumulative_20261022.html
-  attaching workbook: daily_tracker.xlsx (75 KB)
   {'telegram': True}
 
 ------------------------------------------------------------------

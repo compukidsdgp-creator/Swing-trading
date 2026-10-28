@@ -1,5 +1,5 @@
 ==================================================================
-SwingScope pipeline — 2026-10-27 22:27
+SwingScope pipeline — 2026-10-28 22:44
 ==================================================================
 
 [1/10] Universe
@@ -12,29 +12,28 @@ SwingScope pipeline — 2026-10-27 22:27
   400 of 400 tickers returned usable history
   schema: 400 frames validated, no critical violations
   health: 4/4 checks passed
-  provenance: code 26ff3b018f22e55c · data bd73cd3e1bfc1945 · git 00fcaca
+  provenance: code 26ff3b018f22e55c · data c1c0dbc7087cbcab · git a9c697e
 
 [3/10] Regime
-  RISK_OFF — Nifty -5.6% vs 200DMA, breadth 15%
+  RISK_OFF — Nifty -5.6% vs 200DMA, breadth 21%
   Tiers permitted: large
-  breadth weak: 15% above 50DMA · 36% above 200DMA · A/D 2.39 · 3H/46L
-    ! New lows exceed new highs by 10.8% of the universe. Leadership is narrowing.
-    ! Only 15% of the universe is above its own 50 DMA. Momentum requires participation; it has little to 
-    · Long-term participation (36%) exceeds short-term (15%) — a pullback inside an intact uptrend.
+  breadth weak: 21% above 50DMA · 40% above 200DMA · A/D 2.74 · 7H/17L
+    ! Only 21% of the universe is above its own 50 DMA. Momentum requires participation; it has little to 
+    · Long-term participation (40%) exceeds short-term (21%) — a pullback inside an intact uptrend.
   macro: vol=elevated rate=neutral favourable=True (confidence high)
 
 [4/10] Screener
   model: 12-1 momentum (20y: IC +0.031, Newey-West t = 2.74, 201 windows)
-  ranked 32 stocks by cross-sectional momentum
-  selectivity: 10 of 32 = top 31.2%
-    ! Taking the top 31% — the validated configuration was the top 5%. Filters have cut the universe before selection, so this is closer to the quintile config (0.56% spread) than the concentrated one (1.63%).
+  ranked 47 stocks by cross-sectional momentum
+  selectivity: 10 of 47 = top 21.3%
+    ! Taking the top 21% — the validated configuration was the top 5%. Filters have cut the universe before selection, so this is closer to the quintile config (0.56% spread) than the concentrated one (1.63%).
     Fix: raise --max-tickers, or relax --min-score / the momentum floor so more names reach the ranking stage.
   small caps excluded — 0.96% round-trip cost (0.26% charges + 0.70% slippage)
 
 [5/10] Bucket
-  sector data for 32 of 32 candidates
+  sector data for 40 of 40 candidates
   bucket: 3 of 3 target — mix {'large': 3}
-  · Regime risk off: excluded 7 candidates in disallowed tiers (permitted: large).
+  · Regime risk off: excluded 11 candidates in disallowed tiers (permitted: large).
   · Bucket capped at 3 by the risk off regime (requested 10).
 
   exit-liquidity check (F&O list: 224 symbols, NSE live)
@@ -44,7 +43,7 @@ SwingScope pipeline — 2026-10-27 22:27
   skipped
 
 [5b] Crash protection
-  realised vol 14.3% vs 12% target -> exposure 84%  [basket proxy (insufficient strategy history)]
+  realised vol 14.4% vs 12% target -> exposure 84%  [basket proxy (insufficient strategy history)]
   market crash-risk state: normal
 
 [6b] Daily tracker
@@ -53,11 +52,11 @@ SwingScope pipeline — 2026-10-27 22:27
   workbook: reports/daily_tracker.xlsx
 
 [6c] Earnings window
-  results season until 2026-11-15 (19 days) — expect exclusions
+  results season until 2026-11-15 (18 days) — expect exclusions
   3 checked: 0 clear, 1 report inside the window, 2 unknown
-    EXCLUDE LAURUSLABS: reports 2026-10-29 (2.0 days)
+    EXCLUDE LAURUSLABS: reports 2026-10-29 (1.0 days)
     VERIFY  CUPID: no date retrievable
-    VERIFY  CHENNPETRO: no date retrievable
+    VERIFY  WELCORP: no date retrievable
   · Today falls inside a typical Indian results season (mid-Jan, mid-Apr, mid-Jul, mid-Oct). Expect more
   · 1 pick(s) report inside the 15-day window. Holding through results converts a momentum trade into an
   · 2 pick(s) have no retrievable date. yfinance coverage of Indian earnings is incomplete — verify on n
@@ -71,16 +70,16 @@ SwingScope pipeline — 2026-10-27 22:27
   forward: 24 picks, mean -2.02%, IC None
 
 [9/10] Report
-  wrote html: reports/report_20261027.html
+  wrote html: reports/report_20261028.html
 
 [9b] Dashboard
-  daily: reports/dashboard_20261027.html (22,419 chars)
-  cumulative: reports/dashboard_cumulative_20261027.html (337,680 chars)
+  daily: reports/dashboard_20261028.html (22,434 chars)
+  cumulative: reports/dashboard_cumulative_20261028.html (359,610 chars)
 
 [10/10] Notify
-  attaching daily dashboard: dashboard_20261027.html
-  attaching 30-day dashboard: dashboard_cumulative_20261027.html
-  attaching workbook: daily_tracker.xlsx (78 KB)
+  attaching daily dashboard: dashboard_20261028.html
+  attaching 30-day dashboard: dashboard_cumulative_20261028.html
+  attaching workbook: daily_tracker.xlsx (80 KB)
   {'telegram': True}
 
 ------------------------------------------------------------------

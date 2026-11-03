@@ -1,5 +1,5 @@
 ==================================================================
-SwingScope pipeline — 2026-11-03 01:07
+SwingScope pipeline — 2026-11-03 23:32
 ==================================================================
 
 [1/10] Universe
@@ -12,20 +12,20 @@ SwingScope pipeline — 2026-11-03 01:07
   400 of 400 tickers returned usable history
   schema: 400 frames validated, no critical violations
   health: 4/4 checks passed
-  provenance: code 26ff3b018f22e55c · data 483cce5952e97544 · git 4428094
+  provenance: code 26ff3b018f22e55c · data 4cc8d84b51fb9c2f · git a0cd40c
 
 [3/10] Regime
-  RISK_OFF — Nifty -4.1% vs 200DMA, breadth 24%
+  RISK_OFF — Nifty -2.4% vs 200DMA, breadth 29%
   Tiers permitted: large
-  breadth weak: 24% above 50DMA · 38% above 200DMA · A/D 0.37 · 13H/20L
-    ! Only 24% of the universe is above its own 50 DMA. Momentum requires participation; it has little to 
+  breadth weak: 29% above 50DMA · 40% above 200DMA · A/D 4.38 · 14H/8L
+    ! Only 29% of the universe is above its own 50 DMA. Momentum requires participation; it has little to 
   macro: vol=normal rate=neutral favourable=True (confidence high)
 
 [4/10] Screener
   model: 12-1 momentum (20y: IC +0.031, Newey-West t = 2.74, 201 windows)
-  ranked 48 stocks by cross-sectional momentum
-  selectivity: 10 of 48 = top 20.8%
-    ! Taking the top 21% — the validated configuration was the top 5%. Filters have cut the universe before selection, so this is closer to the quintile config (0.56% spread) than the concentrated one (1.63%).
+  ranked 61 stocks by cross-sectional momentum
+  selectivity: 10 of 61 = top 16.4%
+    ! Taking the top 16% — the validated configuration was the top 5%. Filters have cut the universe before selection, so this is closer to the quintile config (0.56% spread) than the concentrated one (1.63%).
     Fix: raise --max-tickers, or relax --min-score / the momentum floor so more names reach the ranking stage.
   small caps excluded — 0.96% round-trip cost (0.26% charges + 0.70% slippage)
 
@@ -42,11 +42,11 @@ SwingScope pipeline — 2026-11-03 01:07
   skipped
 
 [5b] Crash protection
-  realised vol 14.4% vs 12% target -> exposure 83%  [basket proxy (insufficient strategy history)]
+  realised vol 14.6% vs 12% target -> exposure 82%  [basket proxy (insufficient strategy history)]
   market crash-risk state: normal
 
 [6b] Daily tracker
-  +3 observations, +30 price rows
+  +0 observations, +15 price rows
   tracking 16 tickers
   workbook: reports/daily_tracker.xlsx
 
@@ -54,7 +54,7 @@ SwingScope pipeline — 2026-11-03 01:07
   results season until 2026-11-15 (12 days) — expect exclusions
   3 checked: 1 clear, 0 report inside the window, 2 unknown
     VERIFY  CUPID: no date retrievable
-    VERIFY  SYRMA: no date retrievable
+    VERIFY  CHENNPETRO: no date retrievable
   · Today falls inside a typical Indian results season (mid-Jan, mid-Apr, mid-Jul, mid-Oct). Expect more
   · 2 pick(s) have no retrievable date. yfinance coverage of Indian earnings is incomplete — verify on n
 
@@ -63,14 +63,14 @@ SwingScope pipeline — 2026-11-03 01:07
 
 [8/10] Evaluate matured picks
   evaluated 2 (of 7 open)
-  forward: 26 picks, mean -2.07%, IC None
+  forward: 26 picks, mean -2.02%, IC None
 
 [9/10] Report
   wrote html: reports/report_20261103.html
 
 [9b] Dashboard
-  daily: reports/dashboard_20261103.html (28,116 chars)
-  cumulative: reports/dashboard_cumulative_20261103.html (314,693 chars)
+  daily: reports/dashboard_20261103.html (28,118 chars)
+  cumulative: reports/dashboard_cumulative_20261103.html (318,391 chars)
 
 [10/10] Notify
   attaching daily dashboard: dashboard_20261103.html

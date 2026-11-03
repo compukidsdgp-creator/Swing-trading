@@ -158,3 +158,6 @@ obs_date,ticker,rank,tier,score,momentum_pct,regime,ref_close,stop_loss,stop_pct
 2026-10-29,CUPID,1,large,100,435.74,risk_off,314.55,281.46,-10.52,347.64,380.73,33.09,Consumer Defensive,True,model=momentum
 2026-10-29,WELCORP,2,large,98,241.21,risk_off,2564.3,2285.3,-10.88,2843.3,3122.3,279.0,Basic Materials,True,model=momentum
 2026-10-29,LAURUSLABS,3,large,94,118.4,risk_off,2181.9,2060.59,-5.56,2303.21,2424.52,121.31,Healthcare,True,model=momentum
+2026-11-03,CUPID,1,large,100,497.56,risk_off,324.55,293.26,-9.64,355.84,387.13,31.29,Consumer Defensive,True,model=momentum
+2026-11-03,SYRMA,2,large,94,120.37,risk_off,1625.3,1465.7,-9.82,1784.9,1944.5,159.6,Technology,True,model=momentum
+2026-11-03,LAURUSLABS,3,large,92,112.18,risk_off,2405.5,2262.13,-5.96,2548.87,2692.24,143.37,Healthcare,True,model=momentum

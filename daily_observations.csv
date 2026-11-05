@@ -164,3 +164,6 @@ obs_date,ticker,rank,tier,score,momentum_pct,regime,ref_close,stop_loss,stop_pct
 2026-11-04,CUPID,1,large,100,558.06,risk_off,338.5,306.61,-9.42,370.39,402.28,31.89,Consumer Defensive,True,model=momentum
 2026-11-04,LAURUSLABS,2,large,97,111.41,risk_off,2323.0,2172.0,-6.5,2474.0,2625.0,151.0,Healthcare,True,model=momentum
 2026-11-04,ACUTAAS,3,large,95,84.77,risk_off,3904.0,3543.27,-9.24,4264.73,4625.46,360.73,Basic Materials,True,model=momentum
+2026-11-05,CUPID,1,large,100,532.62,risk_off,336.5,304.8,-9.42,368.2,399.9,31.7,Consumer Defensive,True,model=momentum
+2026-11-05,TDPOWERSYS,2,large,98,151.27,risk_off,728.4,650.61,-10.68,806.19,883.98,77.79,Industrials,True,model=momentum
+2026-11-05,LAURUSLABS,3,large,96,105.8,risk_off,2323.8,2175.54,-6.38,2472.06,2620.32,148.26,Healthcare,True,model=momentum

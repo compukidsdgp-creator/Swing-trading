@@ -1,5 +1,5 @@
 ==================================================================
-SwingScope pipeline — 2026-11-05 23:45
+SwingScope pipeline — 2026-11-08 22:20
 ==================================================================
 
 [1/10] Universe
@@ -12,67 +12,72 @@ SwingScope pipeline — 2026-11-05 23:45
   400 of 400 tickers returned usable history
   schema: 400 frames validated, no critical violations
   health: 4/4 checks passed
-  provenance: code 26ff3b018f22e55c · data 3038b19752bdfd35 · git 95a0479
+  provenance: code 26ff3b018f22e55c · data fc632a19c367c557 · git 3f98bd7
 
 [3/10] Regime
-  RISK_OFF — Nifty -0.2% vs 200DMA, breadth 43%
-  Tiers permitted: large
-  breadth narrowing: 43% above 50DMA · 48% above 200DMA · A/D 4.88 · 16H/3L
-  macro: vol=normal rate=neutral favourable=True (confidence high)
+  NEUTRAL — Nifty +4.1% vs 200DMA, breadth 56%
+  Tiers permitted: large, mid
+  breadth healthy: 56% above 50DMA · 55% above 200DMA · A/D 2.02 · 19H/0L
+  macro: vol=elevated rate=neutral favourable=True (confidence high)
 
 [4/10] Screener
   model: 12-1 momentum (20y: IC +0.031, Newey-West t = 2.74, 201 windows)
-  ranked 83 stocks by cross-sectional momentum
-  selectivity: 10 of 83 = top 12.0%
+  ranked 93 stocks by cross-sectional momentum
+  selectivity: 10 of 93 = top 10.8%
   small caps excluded — 0.96% round-trip cost (0.26% charges + 0.70% slippage)
 
 [5/10] Bucket
   sector data for 40 of 40 candidates
-  bucket: 3 of 3 target — mix {'large': 3}
-  · Regime risk off: excluded 16 candidates in disallowed tiers (permitted: large).
-  · Bucket capped at 3 by the risk off regime (requested 10).
+  bucket: 8 of 8 target — mix {'large': 5, 'mid': 3}
+  · Bucket capped at 8 by the neutral regime (requested 10).
+  · Sector cap reached: Basic Materials, Consumer Cyclical (max 2 each).
 
   exit-liquidity check (F&O list: 224 symbols, NSE live)
-    all picks pass — stops are reachable
+    excluded 2 of 8 on exit risk:
+      SANSERA: STOP UNREACHABLE: the stop sits 10.5% away but the band is 10%. Price freezes be
+      AETHER: STOP UNREACHABLE: the stop sits 11.2% away but the band is 10%. Price freezes be
 
 [6/10] News sentiment
-  skipped
+  CUPID          Mixed            +0.30 (8 items)
+  LAURUSLABS     Mixed            +0.24 (8 items)  <-- EARNINGS in feed, check the date
+  FINCABLES      Mixed            +0.06 (8 items)  <-- EARNINGS in feed, check the date
+  ACUTAAS        Neutral          +0.19 (8 items)  <-- EARNINGS in feed, check the date
+  MCX            Neutral          -0.21 (8 items)  <-- EARNINGS in feed, check the date
+  WELSPUNLIV     Neutral          -0.19 (8 items)  <-- EARNINGS in feed, check the date
 
 [5b] Crash protection
-  realised vol 14.8% vs 12% target -> exposure 81%  [basket proxy (insufficient strategy history)]
+  realised vol 14.7% vs 12% target -> exposure 81%  [basket proxy (insufficient strategy history)]
   market crash-risk state: normal
 
-[6b] Daily tracker
-  +3 observations, +16 price rows
-  tracking 17 tickers
-  workbook: reports/daily_tracker.xlsx
-
 [6c] Earnings window
-  results season until 2026-11-15 (10 days) — expect exclusions
-  3 checked: 1 clear, 0 report inside the window, 2 unknown
+  results season until 2026-11-15 (7 days) — expect exclusions
+  6 checked: 2 clear, 1 report inside the window, 3 unknown
+    EXCLUDE FINCABLES: reports 2026-11-09 (1.0 days)
     VERIFY  CUPID: no date retrievable
-    VERIFY  TDPOWERSYS: no date retrievable
+    VERIFY  ACUTAAS: no date retrievable
+    VERIFY  WELSPUNLIV: no date retrievable
   · Today falls inside a typical Indian results season (mid-Jan, mid-Apr, mid-Jul, mid-Oct). Expect more
-  · 2 pick(s) have no retrievable date. yfinance coverage of Indian earnings is incomplete — verify on n
+  · 1 pick(s) report inside the 30-day window. Holding through results converts a momentum trade into an
+  · 3 pick(s) have no retrievable date. yfinance coverage of Indian earnings is incomplete — verify on n
 
 [7/10] Forward log
-  nothing to record
+  recorded 5 picks (log now 48 rows)
 
 [8/10] Evaluate matured picks
-  evaluated 2 (of 7 open)
+  evaluated 2 (of 9 open)
   forward: 26 picks, mean -2.02%, IC None
+  vs backtest IC 0.0311: Need both a forward log and a validation run to compare.
 
 [9/10] Report
-  wrote html: reports/report_20261105.html
+  wrote html: reports/report_20261108.html
 
 [9b] Dashboard
-  daily: reports/dashboard_20261105.html (28,087 chars)
-  cumulative: reports/dashboard_cumulative_20261105.html (361,743 chars)
+  daily: reports/dashboard_20261108.html (39,453 chars)
+  cumulative: reports/dashboard_cumulative_20261105.html (382,327 chars)
 
 [10/10] Notify
-  attaching daily dashboard: dashboard_20261105.html
+  attaching daily dashboard: dashboard_20261108.html
   attaching 30-day dashboard: dashboard_cumulative_20261105.html
-  attaching workbook: daily_tracker.xlsx (87 KB)
   {'telegram': True}
 
 ------------------------------------------------------------------

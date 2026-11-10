@@ -167,3 +167,9 @@ obs_date,ticker,rank,tier,score,momentum_pct,regime,ref_close,stop_loss,stop_pct
 2026-11-05,CUPID,1,large,100,532.62,risk_off,336.5,304.8,-9.42,368.2,399.9,31.7,Consumer Defensive,True,model=momentum
 2026-11-05,TDPOWERSYS,2,large,98,151.27,risk_off,728.4,650.61,-10.68,806.19,883.98,77.79,Industrials,True,model=momentum
 2026-11-05,LAURUSLABS,3,large,96,105.8,risk_off,2323.8,2175.54,-6.38,2472.06,2620.32,148.26,Healthcare,True,model=momentum
+2026-11-10,CUPID,1,large,100,663.41,neutral,342.85,314.19,-8.36,371.51,400.17,28.66,Consumer Defensive,True,model=momentum
+2026-11-10,LAURUSLABS,2,large,97,109.71,neutral,2454.0,2303.32,-6.14,2604.68,2755.36,150.68,Healthcare,True,model=momentum
+2026-11-10,ACUTAAS,3,large,96,77.06,neutral,3882.6,3537.83,-8.88,4227.37,4572.14,344.77,Basic Materials,True,model=momentum
+2026-11-10,MCX,4,large,95,76.53,neutral,3545.0,3283.38,-7.38,3806.62,4068.24,261.62,Financial Services,True,model=momentum
+2026-11-10,WELSPUNLIV,5,large,94,73.7,neutral,252.21,225.88,-10.44,278.54,304.87,26.33,Consumer Cyclical,True,model=momentum
+2026-11-10,HONASA,6,mid,92,69.03,neutral,484.05,438.19,-9.47,529.91,575.77,45.86,Consumer Defensive,True,model=momentum

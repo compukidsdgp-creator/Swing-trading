@@ -1,5 +1,5 @@
 ==================================================================
-SwingScope pipeline — 2026-11-12 00:54
+SwingScope pipeline — 2026-11-12 23:43
 ==================================================================
 
 [1/10] Universe
@@ -11,42 +11,41 @@ SwingScope pipeline — 2026-11-12 00:54
   universe: 400 tickers — top 400 by 20-day traded value
   400 of 400 tickers returned usable history
   schema: 400 frames validated, no critical violations
-  ! [freshness] Data is 3 business days old (newest 2026-11-09). Within tolerance but worth noting — check for an NSE holiday.
   health: 4/4 checks passed
-  provenance: code 26ff3b018f22e55c · data e8d5484cc7a84574 · git 18e78ac
+  provenance: code 26ff3b018f22e55c · data ac847042fa623a1e · git 6924b31
 
 [3/10] Regime
-  NEUTRAL — Nifty +4.4% vs 200DMA, breadth 59%
+  NEUTRAL — Nifty +5.3% vs 200DMA, breadth 63%
   Tiers permitted: large, mid
-  breadth healthy: 59% above 50DMA · 55% above 200DMA · A/D 1.89 · 29H/2L
+  breadth strong: 63% above 50DMA · 57% above 200DMA · A/D 2.41 · 29H/0L
   macro: vol=elevated rate=neutral favourable=True (confidence high)
 
 [4/10] Screener
   model: 12-1 momentum (20y: IC +0.031, Newey-West t = 2.74, 201 windows)
-  ranked 95 stocks by cross-sectional momentum
-  selectivity: 10 of 95 = top 10.5%
+  ranked 106 stocks by cross-sectional momentum
+  selectivity: 10 of 106 = top 9.4%
   small caps excluded — 0.96% round-trip cost (0.26% charges + 0.70% slippage)
 
 [5/10] Bucket
   sector data for 40 of 40 candidates
   bucket: 8 of 8 target — mix {'large': 5, 'mid': 3}
   · Bucket capped at 8 by the neutral regime (requested 10).
-  · Sector cap reached: Consumer Defensive, Basic Materials, Consumer Cyclical (max 2 each).
+  · Sector cap reached: Consumer Defensive, Consumer Cyclical, Basic Materials (max 2 each).
 
   exit-liquidity check (F&O list: 224 symbols, NSE live)
     excluded 2 of 8 on exit risk:
-      SANSERA: STOP UNREACHABLE: the stop sits 10.8% away but the band is 10%. Price freezes be
-      AETHER: STOP UNREACHABLE: the stop sits 11.6% away but the band is 10%. Price freezes be
+      SANSERA: STOP UNREACHABLE: the stop sits 10.5% away but the band is 10%. Price freezes be
+      AETHER: STOP UNREACHABLE: the stop sits 11.0% away but the band is 10%. Price freezes be
 
 [6/10] News sentiment
   skipped
 
 [5b] Crash protection
-  realised vol 14.8% vs 12% target -> exposure 81%  [basket proxy (insufficient strategy history)]
+  realised vol 14.7% vs 12% target -> exposure 82%  [basket proxy (insufficient strategy history)]
   market crash-risk state: normal
 
 [6b] Daily tracker
-  +6 observations, +0 price rows
+  +0 observations, +18 price rows
   tracking 19 tickers
   workbook: reports/daily_tracker.xlsx
 
@@ -54,8 +53,8 @@ SwingScope pipeline — 2026-11-12 00:54
   results season until 2026-11-15 (3 days) — expect exclusions
   6 checked: 2 clear, 0 report inside the window, 4 unknown
     VERIFY  CUPID: no date retrievable
+    VERIFY  ATHERENERG: no date retrievable
     VERIFY  ACUTAAS: no date retrievable
-    VERIFY  WELSPUNLIV: no date retrievable
     VERIFY  HONASA: no date retrievable
   · Today falls inside a typical Indian results season (mid-Jan, mid-Apr, mid-Jul, mid-Oct). Expect more
   · 4 pick(s) have no retrievable date. yfinance coverage of Indian earnings is incomplete — verify on n
@@ -71,13 +70,13 @@ SwingScope pipeline — 2026-11-12 00:54
   wrote html: reports/report_20261112.html
 
 [9b] Dashboard
-  daily: reports/dashboard_20261112.html (45,130 chars)
-  cumulative: reports/dashboard_cumulative_20261112.html (374,603 chars)
+  daily: reports/dashboard_20261112.html (45,153 chars)
+  cumulative: reports/dashboard_cumulative_20261112.html (378,983 chars)
 
 [10/10] Notify
   attaching daily dashboard: dashboard_20261112.html
   attaching 30-day dashboard: dashboard_cumulative_20261112.html
-  attaching workbook: daily_tracker.xlsx (91 KB)
+  attaching workbook: daily_tracker.xlsx (93 KB)
   {'telegram': True}
 
 ------------------------------------------------------------------

@@ -1,5 +1,5 @@
 ==================================================================
-SwingScope pipeline — 2026-11-10 23:36
+SwingScope pipeline — 2026-11-12 00:54
 ==================================================================
 
 [1/10] Universe
@@ -11,8 +11,9 @@ SwingScope pipeline — 2026-11-10 23:36
   universe: 400 tickers — top 400 by 20-day traded value
   400 of 400 tickers returned usable history
   schema: 400 frames validated, no critical violations
+  ! [freshness] Data is 3 business days old (newest 2026-11-09). Within tolerance but worth noting — check for an NSE holiday.
   health: 4/4 checks passed
-  provenance: code 26ff3b018f22e55c · data e8d5484cc7a84574 · git ed6d89a
+  provenance: code 26ff3b018f22e55c · data e8d5484cc7a84574 · git 18e78ac
 
 [3/10] Regime
   NEUTRAL — Nifty +4.4% vs 200DMA, breadth 59%
@@ -45,12 +46,12 @@ SwingScope pipeline — 2026-11-10 23:36
   market crash-risk state: normal
 
 [6b] Daily tracker
-  +0 observations, +0 price rows
+  +6 observations, +0 price rows
   tracking 19 tickers
   workbook: reports/daily_tracker.xlsx
 
 [6c] Earnings window
-  results season until 2026-11-15 (5 days) — expect exclusions
+  results season until 2026-11-15 (3 days) — expect exclusions
   6 checked: 2 clear, 0 report inside the window, 4 unknown
     VERIFY  CUPID: no date retrievable
     VERIFY  ACUTAAS: no date retrievable
@@ -67,15 +68,15 @@ SwingScope pipeline — 2026-11-10 23:36
   forward: 28 picks, mean -2.43%, IC None
 
 [9/10] Report
-  wrote html: reports/report_20261110.html
+  wrote html: reports/report_20261112.html
 
 [9b] Dashboard
-  daily: reports/dashboard_20261110.html (45,130 chars)
-  cumulative: reports/dashboard_cumulative_20261110.html (338,887 chars)
+  daily: reports/dashboard_20261112.html (45,130 chars)
+  cumulative: reports/dashboard_cumulative_20261112.html (374,603 chars)
 
 [10/10] Notify
-  attaching daily dashboard: dashboard_20261110.html
-  attaching 30-day dashboard: dashboard_cumulative_20261110.html
+  attaching daily dashboard: dashboard_20261112.html
+  attaching 30-day dashboard: dashboard_cumulative_20261112.html
   attaching workbook: daily_tracker.xlsx (91 KB)
   {'telegram': True}
 

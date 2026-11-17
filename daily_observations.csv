@@ -179,3 +179,11 @@ obs_date,ticker,rank,tier,score,momentum_pct,regime,ref_close,stop_loss,stop_pct
 2026-11-12,MCX,4,large,95,76.53,neutral,3545.0,3283.38,-7.38,3806.62,4068.24,261.62,Financial Services,True,model=momentum
 2026-11-12,WELSPUNLIV,5,large,94,73.7,neutral,252.21,225.88,-10.44,278.54,304.87,26.33,Consumer Cyclical,True,model=momentum
 2026-11-12,HONASA,6,mid,92,69.03,neutral,484.05,438.19,-9.47,529.91,575.77,45.86,Consumer Defensive,True,model=momentum
+2026-11-17,CUPID,1,large,100,619.5,risk_on,377.8,344.25,-8.88,411.35,444.9,33.55,Consumer Defensive,True,model=momentum
+2026-11-17,SANSERA,2,mid,99,178.14,risk_on,4708.4,4245.8,-9.82,5171.0,5633.6,462.6,Consumer Cyclical,True,model=momentum
+2026-11-17,ATHERENERG,3,large,98,135.84,risk_on,1945.0,1802.24,-7.34,2087.76,2230.52,142.76,Consumer Cyclical,True,model=momentum
+2026-11-17,LAURUSLABS,4,large,97,110.4,risk_on,2424.0,2280.01,-5.94,2567.99,2711.98,143.99,Healthcare,True,model=momentum
+2026-11-17,FINCABLES,5,mid,96,92.87,risk_on,1270.0,1088.07,-14.33,1451.93,1633.86,181.93,Industrials,True,model=momentum
+2026-11-17,ACUTAAS,6,large,95,79.62,risk_on,4039.1,3696.58,-8.48,4381.62,4724.14,342.52,Basic Materials,True,model=momentum
+2026-11-17,MCX,7,large,94,79.24,risk_on,3720.0,3465.55,-6.84,3974.45,4228.9,254.45,Financial Services,True,model=momentum
+2026-11-17,BHEL,8,large,91,70.65,risk_on,436.3,406.81,-6.76,465.79,495.28,29.49,Industrials,True,model=momentum

@@ -1,5 +1,5 @@
 ==================================================================
-SwingScope pipeline — 2026-11-17 01:56
+SwingScope pipeline — 2026-11-18 01:05
 ==================================================================
 
 [1/10] Universe
@@ -12,29 +12,29 @@ SwingScope pipeline — 2026-11-17 01:56
   400 of 400 tickers returned usable history
   schema: 400 frames validated, no critical violations
   health: 4/4 checks passed
-  provenance: code 26ff3b018f22e55c · data 1434ee33c5af04e9 · git a7e59f2
+  provenance: code 26ff3b018f22e55c · data c3183063695693f1 · git e0502ab
 
 [3/10] Regime
-  RISK_ON — Nifty +4.8% vs 200DMA, breadth 65%
+  RISK_ON — Nifty +5.4% vs 200DMA, breadth 63%
   Tiers permitted: large, mid, small
-  breadth strong: 65% above 50DMA · 57% above 200DMA · A/D 0.50 · 21H/0L
+  breadth strong: 63% above 50DMA · 57% above 200DMA · A/D 0.62 · 17H/2L
   macro: vol=normal rate=neutral favourable=True (confidence high)
 
 [4/10] Screener
   model: 12-1 momentum (20y: IC +0.031, Newey-West t = 2.74, 201 windows)
-  ranked 115 stocks by cross-sectional momentum
-  selectivity: 10 of 115 = top 8.7%
+  ranked 107 stocks by cross-sectional momentum
+  selectivity: 10 of 107 = top 9.3%
   small caps excluded — 0.96% round-trip cost (0.26% charges + 0.70% slippage)
 
 [5/10] Bucket
   sector data for 40 of 40 candidates
   bucket: 10 of 10 target — mix {'large': 6, 'mid': 4}
   · Only 0 of 3 small-cap slots filled — not enough qualifying candidates.
-  · Sector cap reached: Consumer Cyclical, Basic Materials, Industrials (max 2 each).
+  · Sector cap reached: Consumer Defensive, Consumer Cyclical, Basic Materials (max 2 each).
 
   exit-liquidity check (F&O list: 224 symbols, NSE live)
     excluded 2 of 10 on exit risk:
-      AETHER: STOP UNREACHABLE: the stop sits 10.1% away but the band is 10%. Price freezes be
+      AETHER: STOP UNREACHABLE: the stop sits 10.8% away but the band is 10%. Price freezes be
       BBOX: Daily ATR is 5.1% against a 10% band — this security likely hits circuits regula
 
 [6/10] News sentiment
@@ -45,36 +45,37 @@ SwingScope pipeline — 2026-11-17 01:56
   market crash-risk state: normal
 
 [6b] Daily tracker
-  +8 observations, +66 price rows
+  +8 observations, +21 price rows
   tracking 22 tickers
   workbook: reports/daily_tracker.xlsx
 
 [6c] Earnings window
-  8 checked: 4 clear, 0 report inside the window, 4 unknown
+  8 checked: 3 clear, 0 report inside the window, 5 unknown
     VERIFY  CUPID: no date retrievable
     VERIFY  SANSERA: no date retrievable
     VERIFY  ATHERENERG: no date retrievable
     VERIFY  ACUTAAS: no date retrievable
-  · 4 pick(s) have no retrievable date. yfinance coverage of Indian earnings is incomplete — verify on n
+    VERIFY  HONASA: no date retrievable
+  · 5 pick(s) have no retrievable date. yfinance coverage of Indian earnings is incomplete — verify on n
 
 [7/10] Forward log
   nothing to record
 
 [8/10] Evaluate matured picks
   evaluated 3 (of 13 open)
-  forward: 31 picks, mean -2.61%, IC None
+  forward: 31 picks, mean -2.81%, IC None
 
 [9/10] Report
-  wrote html: reports/report_20261117.html
+  wrote html: reports/report_20261118.html
 
 [9b] Dashboard
-  daily: reports/dashboard_20261117.html (56,533 chars)
-  cumulative: reports/dashboard_cumulative_20261117.html (365,099 chars)
+  daily: reports/dashboard_20261118.html (56,498 chars)
+  cumulative: reports/dashboard_cumulative_20261118.html (416,986 chars)
 
 [10/10] Notify
-  attaching daily dashboard: dashboard_20261117.html
-  attaching 30-day dashboard: dashboard_cumulative_20261117.html
-  attaching workbook: daily_tracker.xlsx (97 KB)
+  attaching daily dashboard: dashboard_20261118.html
+  attaching 30-day dashboard: dashboard_cumulative_20261118.html
+  attaching workbook: daily_tracker.xlsx (99 KB)
   {'telegram': True}
 
 ------------------------------------------------------------------

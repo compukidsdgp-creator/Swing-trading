@@ -223,3 +223,10 @@ obs_date,ticker,rank,tier,score,momentum_pct,regime,ref_close,stop_loss,stop_pct
 2026-11-25,MCX,5,large,95,61.45,risk_on,3581.6,3324.44,-7.18,3838.76,4095.92,257.16,Financial Services,True,model=momentum
 2026-11-25,SAILIFE,6,large,92,60.09,risk_on,1809.1,1660.75,-8.2,1957.45,2105.8,148.35,Healthcare,True,model=momentum
 2026-11-25,ACMESOLAR,7,mid,89,55.28,risk_on,411.6,372.81,-9.42,450.39,489.18,38.79,Utilities,True,model=momentum
+2026-11-26,CUPID,1,large,100,411.52,risk_on,362.15,331.15,-8.56,393.15,424.15,31.0,Consumer Defensive,True,model=momentum
+2026-11-26,ATHERENERG,2,large,98,119.41,risk_on,1979.2,1841.84,-6.94,2116.56,2253.92,137.36,Consumer Cyclical,True,model=momentum
+2026-11-26,LAURUSLABS,3,large,97,100.65,risk_on,2370.7,2209.49,-6.8,2531.91,2693.12,161.21,Healthcare,True,model=momentum
+2026-11-26,ACUTAAS,4,large,96,88.05,risk_on,3875.0,3554.92,-8.26,4195.08,4515.16,320.08,Basic Materials,True,model=momentum
+2026-11-26,MCX,5,large,95,61.45,risk_on,3581.6,3324.44,-7.18,3838.76,4095.92,257.16,Financial Services,True,model=momentum
+2026-11-26,SAILIFE,6,large,92,60.09,risk_on,1809.1,1660.75,-8.2,1957.45,2105.8,148.35,Healthcare,True,model=momentum
+2026-11-26,ACMESOLAR,7,mid,89,55.28,risk_on,411.6,372.81,-9.42,450.39,489.18,38.79,Utilities,True,model=momentum
